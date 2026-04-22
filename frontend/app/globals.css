@@ -1,0 +1,59 @@
+﻿@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=DM+Sans:wght@300;400;500&family=DM+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+:root {
+  --bg:       #0e1117;
+  --floor:    #13181f;
+  --wall:     #1a2030;
+  --cabin:    #161c26;
+  --border:   #252d3d;
+  --border2:  #2e3a50;
+  --text:     #d8dce8;
+  --muted:    #4a566e;
+  --accent:   #c9a84c;
+  --ceo:      #7c9ee8;
+  --cfo:      #2dd4a0;
+  --cmo:      #e87c4a;
+  --risk:     #c47ce8;
+  --approve:  #2dd4a0;
+  --cond:     #e8a830;
+  --reject:   #e85555;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'DM Sans', sans-serif;
+  font-weight: 300;
+  overflow: hidden;
+  height: 100vh;
+}
+
+::-webkit-scrollbar { width: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+@keyframes fadeUp {
+  from { opacity:0; transform:translateY(12px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+@keyframes blink {
+  0%,100% { opacity:1; } 50% { opacity:0.3; }
+}
+@keyframes slideRight {
+  from { opacity:0; transform:translateX(-10px); }
+  to   { opacity:1; transform:translateX(0); }
+}
+@keyframes popIn {
+  0%   { opacity:0; transform:scale(0.92); }
+  100% { opacity:1; transform:scale(1); }
+}
+@keyframes pulse {
+  0%,100% { opacity:1; } 50% { opacity:0.4; }
+}
+
+.fade-up   { animation: fadeUp    0.4s ease both; }
+.slide-r   { animation: slideRight 0.3s ease both; }
+.pop-in    { animation: popIn     0.3s ease both; }
