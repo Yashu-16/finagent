@@ -33,10 +33,10 @@ const AGENT_META: Record<string, {
   color: string; bg: string; border: string;
   emoji: string; title: string; realName: string; company: string;
 }> = {
-  CEO:  { color: "#3b5bdb", bg: "#eef2ff", border: "#c5d0fa", emoji: "🚀", title: "Chief Executive Officer", realName: "Elon Musk",    company: "Tesla · SpaceX · X - CEO" },
-  CFO:  { color: "#0d7a4e", bg: "#e8f8f1", border: "#a8dfc5", emoji: "💳", title: "Chief Financial Officer", realName: "Sachin Mehra", company: "Mastercard - CFO" },
-  CMO:  { color: "#c2410c", bg: "#fff4ee", border: "#fbc99a", emoji: "📊", title: "Chief Marketing Officer", realName: "Julia White",  company: "Amazon - CMO" },
-  Risk: { color: "#6d28d9", bg: "#f5f3ff", border: "#c4b5fd", emoji: "🏦", title: "Chief Risk Officer",      realName: "Ashley Bacon", company: "JP Morgan Chase - Risk" },
+  CEO:  { color: "#3b5bdb", bg: "#eef2ff", border: "#c5d0fa", emoji: "🚀", title: "Chief Executive Officer", realName: "Elon Musk",    company: "Tesla · SpaceX · X" },
+  CFO:  { color: "#0d7a4e", bg: "#e8f8f1", border: "#a8dfc5", emoji: "💳", title: "Chief Financial Officer", realName: "Sachin Mehra", company: "Mastercard" },
+  CMO:  { color: "#c2410c", bg: "#fff4ee", border: "#fbc99a", emoji: "📊", title: "Chief Marketing Officer", realName: "Julia White",  company: "SAP" },
+  Risk: { color: "#6d28d9", bg: "#f5f3ff", border: "#c4b5fd", emoji: "🏦", title: "Chief Risk Officer",      realName: "Ashley Bacon", company: "JP Morgan" },
 };
 
 const DEFAULT_WEIGHTS: Record<string, number> = { CEO: 50, CFO: 17, CMO: 17, Risk: 16 };
@@ -111,14 +111,20 @@ function StanceToast({ changes }: { changes: { agent: string; from: string; to: 
 function AgentCard({ agentKey, state }: { agentKey: string; state: AgentState }) {
   const meta = AGENT_META[agentKey];
   const isActive = state.active;
+
+  // Short titles that fit in card
+  const shortTitle: Record<string, string> = {
+    CEO: "CEO", CFO: "CFO", CMO: "CMO", Risk: "CRO",
+  };
+
   return (
     <div style={{
       background: isActive ? meta.bg : "var(--surface2)",
       border: `1.5px solid ${isActive ? meta.border : "var(--border)"}`,
       borderRadius: 10, padding: "8px 10px",
-      width: "100%",
       boxShadow: isActive ? `0 0 0 3px ${meta.bg}` : "none",
       transition: "all 0.25s ease",
+      minWidth: 0,
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5 }}>
         <div style={{
@@ -138,10 +144,14 @@ function AgentCard({ agentKey, state }: { agentKey: string; state: AgentState })
             fontSize: 10, color: "var(--text3)",
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const,
           }}>
-            {meta.company}
+            {meta.company} · {shortTitle[agentKey]}
           </div>
         </div>
-        {state.hasSpoken && <StanceBadge stance={state.stance} />}
+        {state.hasSpoken && (
+          <div style={{ flexShrink: 0 }}>
+            <StanceBadge stance={state.stance} />
+          </div>
+        )}
       </div>
       <PersonalityBadge agentKey={agentKey} />
     </div>
@@ -519,11 +529,10 @@ export default function Home() {
             padding: "10px 16px",
           }}>
             {/* Row 1: Agent cards — equal columns */}
-            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+            {/* Row 1: Agent cards — equal columns */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
               {Object.keys(AGENT_META).map(key => (
-                <div key={key} style={{ flex: 1 }}>
-                  <AgentCard agentKey={key} state={agentStates[key]} />
-                </div>
+                <AgentCard key={key} agentKey={key} state={agentStates[key]} />
               ))}
             </div>
 
@@ -813,9 +822,12 @@ export default function Home() {
                         <div style={{ fontSize: 14, fontWeight: 700, color: meta.color }}>
                           {meta.realName}
                         </div>
-                        <div style={{ fontSize: 12, color: "var(--text3)" }}>
-                          {meta.title} · {meta.company}
-                        </div>
+                        <div style={{
+            fontSize: 10, color: "var(--text3)",
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const,
+          }}>
+            {meta.company}
+          </div>
                       </div>
                       <span style={{
                         fontSize: 12, fontWeight: 700,
