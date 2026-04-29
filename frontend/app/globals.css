@@ -1,0 +1,84 @@
+﻿@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300;0,14..32,400;0,14..32,500;0,14..32,600;0,14..32,700;0,14..32,800;0,14..32,900;1,14..32,400&display=swap');
+@import "tailwindcss";
+
+:root {
+  /* Light theme — professional financial services */
+  --bg:         #f4f6fa;
+  --bg2:        #eef1f8;
+  --surface:    #ffffff;
+  --surface2:   #f8f9fc;
+  --surface3:   #f0f3f9;
+  --border:     #e2e6f0;
+  --border2:    #d0d6e8;
+  --shadow:     rgba(30, 40, 80, 0.08);
+  --shadow-md:  rgba(30, 40, 80, 0.12);
+  --shadow-lg:  rgba(30, 40, 80, 0.18);
+
+  /* Text */
+  --text:       #0f1623;
+  --text2:      #2d3a52;
+  --text3:      #5a6b8a;
+  --muted:      #8a9bb8;
+
+  /* Brand */
+  --navy:       #1a2744;
+  --navy2:      #243259;
+  --gold:       #c8951a;
+  --gold-light: #fdf3dc;
+  --gold-border:#f0d080;
+
+  /* Semantic */
+  --approve:    #0d7a4e;
+  --approve-bg: #e8f8f1;
+  --approve-bd: #a8dfc5;
+  --cond:       #b45309;
+  --cond-bg:    #fef9ec;
+  --cond-bd:    #f0d080;
+  --reject:     #c0392b;
+  --reject-bg:  #fdf0ee;
+  --reject-bd:  #f5b8b2;
+
+  /* Agents */
+  --ceo:        #3b5bdb;
+  --cfo:        #0d7a4e;
+  --cmo:        #c2410c;
+  --risk:       #6d28d9;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 16px; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', -apple-system, sans-serif;
+  font-weight: 400;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(14px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes fadeIn {
+  from { opacity: 0; } to { opacity: 1; }
+}
+@keyframes slideLeft {
+  from { opacity: 0; transform: translateX(10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; } 50% { opacity: 0.3; }
+}
+@keyframes pulse {
+  0%, 100% { opacity: 1; } 50% { opacity: 0.5; }
+}
+
+.fade-up  { animation: fadeUp   0.4s cubic-bezier(0.16,1,0.3,1) both; }
+.fade-in  { animation: fadeIn   0.3s ease both; }
+.slide-l  { animation: slideLeft 0.35s cubic-bezier(0.16,1,0.3,1) both; }
