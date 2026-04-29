@@ -45,7 +45,11 @@ app = FastAPI(title="FinAgent API", version="0.7.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "http://192.168.1.154:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -74,11 +78,13 @@ async def simulate_stream(request: ScenarioRequest):
     async def generate():
         yield emit("session", {"session_id": session_id})
 
-        # ── Phase 1: Initial positions ────────────────────────────────
+        # Phase 1: Initial positions
         initial_positions = []
-
         for agent in AGENTS:
-            yield emit("status", {"text": f"{agent.role_name} is forming a position…", "agent": agent.role_name})
+            yield emit("status", {
+                "text": f"{agent.role_name} is forming a position…",
+                "agent": agent.role_name,
+            })
             try:
                 pos = agent.get_initial_position(request.scenario)
                 clean_pos = {
@@ -94,7 +100,7 @@ async def simulate_stream(request: ScenarioRequest):
                 logger.error(f"Error from {agent.role_name}: {e}")
                 yield emit("error", {"agent": agent.role_name, "message": str(e)})
 
-        # ── Phase 2: Debate rounds ────────────────────────────────────
+        # Phase 2: Debate rounds
         raw_rounds = []
         argument_memory = [
             {"agent": p["agent"], "round": 0, "argument": p["reasoning"]}
@@ -119,7 +125,6 @@ async def simulate_stream(request: ScenarioRequest):
                         prior_arguments=argument_memory,
                         round_number=round_num,
                     )
-
                     target = response.get("target_agent", valid_agents[0])
                     if target not in valid_agents:
                         target = valid_agents[0]
@@ -143,7 +148,6 @@ async def simulate_stream(request: ScenarioRequest):
                         "round":    round_num,
                         "argument": exchange["argument"],
                     })
-
                     yield emit("exchange", exchange)
 
                 except Exception as e:
@@ -160,9 +164,8 @@ async def simulate_stream(request: ScenarioRequest):
 
             raw_rounds.append({"round_number": round_num, "exchanges": round_exchanges})
 
-        # ── Phase 3: Decision ─────────────────────────────────────────
+        # Phase 3: Decision
         yield emit("status", {"text": "Board is reaching a decision…", "agent": None})
-
         decision_engine = DecisionEngine()
         decision_data = decision_engine.aggregate(
             scenario=request.scenario,

@@ -33,10 +33,10 @@ const AGENT_META: Record<string, {
   color: string; bg: string; border: string;
   emoji: string; title: string; realName: string; company: string;
 }> = {
-  CEO:  { color: "#3b5bdb", bg: "#eef2ff", border: "#c5d0fa", emoji: "🚀", title: "Chief Executive Officer", realName: "Elon Musk",    company: "Tesla · SpaceX · X" },
-  CFO:  { color: "#0d7a4e", bg: "#e8f8f1", border: "#a8dfc5", emoji: "💳", title: "Chief Financial Officer", realName: "Sachin Mehra", company: "Mastercard" },
-  CMO:  { color: "#c2410c", bg: "#fff4ee", border: "#fbc99a", emoji: "📊", title: "Chief Marketing Officer", realName: "Julia White",  company: "SAP" },
-  Risk: { color: "#6d28d9", bg: "#f5f3ff", border: "#c4b5fd", emoji: "🏦", title: "Chief Risk Officer",      realName: "Ashley Bacon", company: "JP Morgan Chase" },
+  CEO:  { color: "#3b5bdb", bg: "#eef2ff", border: "#c5d0fa", emoji: "🚀", title: "Chief Executive Officer", realName: "Elon Musk",    company: "Tesla · SpaceX · X - CEO" },
+  CFO:  { color: "#0d7a4e", bg: "#e8f8f1", border: "#a8dfc5", emoji: "💳", title: "Chief Financial Officer", realName: "Sachin Mehra", company: "Mastercard - CFO" },
+  CMO:  { color: "#c2410c", bg: "#fff4ee", border: "#fbc99a", emoji: "📊", title: "Chief Marketing Officer", realName: "Julia White",  company: "Amazon - CMO" },
+  Risk: { color: "#6d28d9", bg: "#f5f3ff", border: "#c4b5fd", emoji: "🏦", title: "Chief Risk Officer",      realName: "Ashley Bacon", company: "JP Morgan Chase - Risk" },
 };
 
 const DEFAULT_WEIGHTS: Record<string, number> = { CEO: 50, CFO: 17, CMO: 17, Risk: 16 };
@@ -63,7 +63,6 @@ function safeStr(val: unknown): string {
   return String(val ?? "");
 }
 
-// ── Stance badge ──────────────────────────────────────────────────────────────
 function StanceBadge({ stance }: { stance: string }) {
   const s = STANCE_STYLE[stance] || STANCE_STYLE.idle;
   return (
@@ -79,7 +78,6 @@ function StanceBadge({ stance }: { stance: string }) {
   );
 }
 
-// ── Stance change toast ───────────────────────────────────────────────────────
 function StanceToast({ changes }: { changes: { agent: string; from: string; to: string }[] }) {
   if (!changes.length) return null;
   const latest = changes[changes.length - 1];
@@ -110,7 +108,6 @@ function StanceToast({ changes }: { changes: { agent: string; from: string; to: 
   );
 }
 
-// ── Agent card ────────────────────────────────────────────────────────────────
 function AgentCard({ agentKey, state }: { agentKey: string; state: AgentState }) {
   const meta = AGENT_META[agentKey];
   const isActive = state.active;
@@ -118,44 +115,48 @@ function AgentCard({ agentKey, state }: { agentKey: string; state: AgentState })
     <div style={{
       background: isActive ? meta.bg : "var(--surface2)",
       border: `1.5px solid ${isActive ? meta.border : "var(--border)"}`,
-      borderRadius: 10, padding: "8px 12px",
-      flexShrink: 0, width: "fit-content",
+      borderRadius: 10, padding: "8px 10px",
+      width: "100%",
       boxShadow: isActive ? `0 0 0 3px ${meta.bg}` : "none",
       transition: "all 0.25s ease",
     }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5 }}>
         <div style={{
-          width: 30, height: 30, borderRadius: 7,
+          width: 28, height: 28, borderRadius: 6,
           background: meta.bg, border: `1.5px solid ${meta.border}`,
           display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 14, flexShrink: 0,
+          fontSize: 13, flexShrink: 0,
         }}>{meta.emoji}</div>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 700, color: meta.color, lineHeight: 1.2, whiteSpace: "nowrap" as const }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{
+            fontSize: 12, fontWeight: 700, color: meta.color, lineHeight: 1.2,
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const,
+          }}>
             {meta.realName}
           </div>
-          <div style={{ fontSize: 10, color: "var(--text3)", marginTop: 1, whiteSpace: "nowrap" as const }}>
+          <div style={{
+            fontSize: 10, color: "var(--text3)",
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const,
+          }}>
             {meta.company}
           </div>
         </div>
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" as const }}>
-        <PersonalityBadge agentKey={agentKey} />
         {state.hasSpoken && <StanceBadge stance={state.stance} />}
       </div>
+      <PersonalityBadge agentKey={agentKey} />
     </div>
   );
 }
 
-// ── Chat bubble ───────────────────────────────────────────────────────────────
 function ChatBubble({ msg, idx }: { msg: ChatMessage; idx: number }) {
   if (msg.kind === "system") {
     return (
       <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "20px 0 16px" }}>
         <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
-        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--gold)", letterSpacing: "0.08em", whiteSpace: "nowrap" as const }}>
-          {msg.text}
-        </span>
+        <span style={{
+          fontSize: 12, fontWeight: 600, color: "var(--gold)",
+          letterSpacing: "0.08em", whiteSpace: "nowrap" as const,
+        }}>{msg.text}</span>
         <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
       </div>
     );
@@ -207,7 +208,6 @@ function ChatBubble({ msg, idx }: { msg: ChatMessage; idx: number }) {
   );
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
 export default function Home() {
   const [scenario, setScenario] = useState("");
   const [rounds, setRounds] = useState(2);
@@ -288,17 +288,16 @@ export default function Home() {
     try {
       await streamSimulation(
         scenario,
-        {
-          debate_rounds: rounds,
-          decision_mode: mode,
-          agent_weights: customWeights,
-        },
+        { debate_rounds: rounds, decision_mode: mode, agent_weights: customWeights },
         (event: StreamEvent) => {
           switch (event.type) {
             case "session": setSessionId(event.session_id); break;
             case "status":
               setStatusText(event.text);
-              if (event.agent) setAgentStates(prev => ({ ...prev, [event.agent!]: { ...prev[event.agent!], active: true } }));
+              if (event.agent) setAgentStates(prev => ({
+                ...prev,
+                [event.agent!]: { ...prev[event.agent!], active: true },
+              }));
               break;
             case "round_start":
               setMessages(prev => [...prev, {
@@ -368,7 +367,6 @@ export default function Home() {
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden", background: "var(--bg)" }}>
 
       <StanceToast changes={stanceChanges} />
-
       {showReplay && <ReplayTimeline messages={messages} onClose={() => setShowReplay(false)} />}
       {showCompare && <CompareView onClose={() => setShowCompare(false)} />}
       {showExport && decision && (
@@ -437,16 +435,12 @@ export default function Home() {
           <span style={{
             fontSize: 14, fontWeight: loading ? 500 : 400,
             color: loading ? "#fbbf24" : "rgba(255,255,255,0.55)",
-          }}>
-            {statusText}
-          </span>
+          }}>{statusText}</span>
           {sessionId && (
             <span style={{
-              fontSize: 11, color: "rgba(255,255,255,0.35)",
-              fontFamily: "monospace",
-              background: "rgba(255,255,255,0.07)",
-              padding: "3px 10px", borderRadius: 6,
-              border: "1px solid rgba(255,255,255,0.1)",
+              fontSize: 11, color: "rgba(255,255,255,0.35)", fontFamily: "monospace",
+              background: "rgba(255,255,255,0.07)", padding: "3px 10px",
+              borderRadius: 6, border: "1px solid rgba(255,255,255,0.1)",
             }}>{sessionId}</span>
           )}
         </div>
@@ -475,9 +469,7 @@ export default function Home() {
             fontSize: 13, padding: "7px 14px", borderRadius: 8, fontWeight: 500,
             background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.13)",
             color: "rgba(255,255,255,0.6)", cursor: "pointer", fontFamily: "Inter, sans-serif",
-          }}>
-            {showInput ? "Hide Input" : "New Scenario"}
-          </button>
+          }}>{showInput ? "Hide Input" : "New Scenario"}</button>
         </div>
       </header>
 
@@ -519,97 +511,94 @@ export default function Home() {
         {/* ── LEFT PANEL ───────────────────────────────────────────────── */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "auto", minWidth: 0 }}>
 
-          {/* ── Row 1 + Row 2: Agent cards + vote weight strip ── */}
+          {/* ── Agent cards + vote weights ── */}
           <div style={{
             background: "var(--surface)",
             borderBottom: "1px solid var(--border)",
             flexShrink: 0,
+            padding: "10px 16px",
           }}>
-            {/* Row 1: Agent cards */}
-            <div style={{
-              padding: "10px 16px 8px",
-              display: "flex", gap: 8, alignItems: "flex-start",
-              overflowX: "auto",
-            }}>
+            {/* Row 1: Agent cards — equal columns */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
               {Object.keys(AGENT_META).map(key => (
-                <AgentCard key={key} agentKey={key} state={agentStates[key]} />
+                <div key={key} style={{ flex: 1 }}>
+                  <AgentCard agentKey={key} state={agentStates[key]} />
+                </div>
               ))}
             </div>
 
-            {/* Divider between rows */}
-            <div style={{ height: 1, background: "var(--border)", margin: "0 16px" }} />
+            {/* Divider */}
+            <div style={{ height: 1, background: "var(--border)", marginBottom: 10 }} />
 
-            {/* Row 2: Vote weight sliders — horizontal */}
-            <div style={{
-              padding: "10px 16px 12px",
-              display: "flex", gap: 16, alignItems: "center",
-              overflowX: "auto",
-            }}>
+            {/* Row 2: Vote weight sliders — same flex proportions */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+
+              {/* Label */}
               <span style={{
-                fontSize: 11, fontWeight: 700, color: "var(--gold)",
-                letterSpacing: "0.06em", whiteSpace: "nowrap" as const, flexShrink: 0,
-              }}>
-                ⚖ VOTE WEIGHTS
-              </span>
+                fontSize: 10, fontWeight: 700, color: "var(--gold)",
+                letterSpacing: "0.05em", whiteSpace: "nowrap" as const,
+                flexShrink: 0, marginRight: 2,
+              }}>⚖ WEIGHTS</span>
 
+              {/* 4 sliders — flex:1 each, matching agent cards */}
               {Object.entries(customWeights).map(([k, w]) => {
                 const meta = AGENT_META[k];
                 return (
-                  <div key={k} style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                  <div key={k} style={{
+                    flex: 1, display: "flex", alignItems: "center", gap: 5, minWidth: 0,
+                  }}>
                     <span style={{
-                      fontSize: 12, fontWeight: 600, color: meta.color,
-                      whiteSpace: "nowrap" as const,
-                    }}>
-                      {meta.emoji} {k}
-                    </span>
+                      fontSize: 10, fontWeight: 700, color: meta.color,
+                      whiteSpace: "nowrap" as const, flexShrink: 0,
+                    }}>{k}</span>
                     <input
                       type="range"
                       min={0} max={100} step={1}
                       value={w}
                       onChange={e => handleWeightChange(k, Number(e.target.value))}
                       style={{
-                        width: 90, height: 4,
-                        accentColor: meta.color,
-                        cursor: "pointer",
+                        flex: 1, minWidth: 0, height: 4,
+                        accentColor: meta.color, cursor: "pointer",
                       }}
                     />
                     <span style={{
-                      fontSize: 12, fontWeight: 700, fontFamily: "monospace",
+                      fontSize: 10, fontWeight: 700, fontFamily: "monospace",
                       color: "var(--text2)", background: "var(--surface2)",
                       border: "1px solid var(--border)",
-                      padding: "1px 7px", borderRadius: 4,
-                      minWidth: 38, textAlign: "center" as const,
+                      padding: "1px 4px", borderRadius: 4,
+                      minWidth: 30, textAlign: "center" as const, flexShrink: 0,
                     }}>{w}%</span>
                   </div>
                 );
               })}
 
-              {/* Total indicator */}
+              {/* Separator */}
+              <div style={{ width: 1, height: 16, background: "var(--border)", flexShrink: 0 }} />
+
+              {/* Total badge */}
               <span style={{
-                fontSize: 12, fontWeight: 700,
+                fontSize: 11, fontWeight: 700, flexShrink: 0,
                 color: totalWeight === 100 ? "var(--approve)" : "var(--reject)",
                 background: totalWeight === 100 ? "var(--approve-bg)" : "var(--reject-bg)",
                 border: `1px solid ${totalWeight === 100 ? "var(--approve-bd)" : "var(--reject-bd)"}`,
-                padding: "3px 10px", borderRadius: 20,
-                whiteSpace: "nowrap" as const, flexShrink: 0,
+                padding: "2px 8px", borderRadius: 20,
+                whiteSpace: "nowrap" as const,
               }}>
-                {totalWeight === 100 ? "✓ 100%" : `${totalWeight}% / 100%`}
+                {totalWeight === 100 ? "✓ 100%" : `${totalWeight}%`}
               </span>
 
               {/* Reset button */}
               <button onClick={resetWeights} style={{
-                fontSize: 12, padding: "4px 12px", borderRadius: 6,
+                fontSize: 11, padding: "3px 8px", borderRadius: 6, flexShrink: 0,
                 background: "var(--surface2)", border: "1px solid var(--border)",
                 color: "var(--text3)", cursor: "pointer",
                 fontFamily: "Inter, sans-serif", fontWeight: 500,
-                whiteSpace: "nowrap" as const, flexShrink: 0,
-              }}>
-                ↺ Reset
-              </button>
+                whiteSpace: "nowrap" as const,
+              }}>↺ Reset</button>
             </div>
           </div>
 
-          {/* 3D office scene */}
+          {/* 3D office */}
           <div style={{ height: 380, flexShrink: 0, position: "relative", background: "#1a2035" }}>
             <Office3D agentStates={agentStates} />
           </div>
@@ -706,17 +695,13 @@ export default function Home() {
                   onChange={e => setScenario(e.target.value)}
                   disabled={loading}
                   onKeyDown={e => {
-                    if (e.key === "Enter" && !e.shiftKey) {
-                      e.preventDefault();
-                      handleSimulate();
-                    }
+                    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSimulate(); }
                   }}
                   placeholder="Describe the strategic decision for the board… (Enter to submit)"
                   rows={2}
                   style={{
                     flex: 1, resize: "none", outline: "none",
-                    background: "var(--surface2)",
-                    border: "1.5px solid var(--border2)",
+                    background: "var(--surface2)", border: "1.5px solid var(--border2)",
                     borderRadius: 10, padding: "10px 13px",
                     fontSize: 14, color: "var(--text)", lineHeight: 1.55,
                     fontFamily: "Inter, sans-serif",
@@ -746,8 +731,7 @@ export default function Home() {
                     onClick={handleSimulate}
                     disabled={loading || !scenario.trim() || totalWeight !== 100}
                     style={{
-                      padding: "10px 20px", borderRadius: 10,
-                      fontWeight: 700, fontSize: 14,
+                      padding: "10px 20px", borderRadius: 10, fontWeight: 700, fontSize: 14,
                       background: loading || !scenario.trim() || totalWeight !== 100
                         ? "var(--surface3)" : "var(--navy)",
                       color: loading || !scenario.trim() || totalWeight !== 100
@@ -769,7 +753,7 @@ export default function Home() {
           )}
         </div>
 
-        {/* ── RIGHT PANEL: Live discussion ──────────────────────────────── */}
+        {/* ── RIGHT PANEL ───────────────────────────────────────────────── */}
         <div style={{
           width: 420, flexShrink: 0,
           display: "flex", flexDirection: "column",
@@ -852,13 +836,10 @@ export default function Home() {
 
             {loading && (
               <div style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 13, color: "var(--text3)", marginBottom: 8 }}>
-                  {statusText}
-                </div>
+                <div style={{ fontSize: 13, color: "var(--text3)", marginBottom: 8 }}>{statusText}</div>
                 <div style={{
                   background: "var(--surface2)", border: "1px solid var(--border)",
-                  borderRadius: "4px 12px 12px 12px",
-                  padding: "14px 16px",
+                  borderRadius: "4px 12px 12px 12px", padding: "14px 16px",
                   display: "flex", gap: 6, alignItems: "center",
                 }}>
                   {[0,1,2].map(i => (
