@@ -3,6 +3,7 @@
 export interface SimulationConfig {
   debate_rounds: number;
   decision_mode: "weighted" | "majority";
+  agent_weights?: Record<string, number>;
 }
 
 export interface AgentPosition {

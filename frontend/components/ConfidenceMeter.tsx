@@ -22,17 +22,22 @@ const STANCE_SCORE: Record<string, number> = {
 };
 
 const AGENT_META: Record<string, { color: string; emoji: string; realName: string }> = {
-  CEO:  { color: "#7c9ee8", emoji: "🚀", realName: "Elon Musk" },
-  CFO:  { color: "#2dd4a0", emoji: "💳", realName: "Sachin Mehra" },
-  CMO:  { color: "#e87c4a", emoji: "📊", realName: "Julia White" },
-  Risk: { color: "#c47ce8", emoji: "🏦", realName: "Ashley Bacon" },
+  CEO:  { color: "#3b5bdb", emoji: "🚀", realName: "Elon Musk" },
+  CFO:  { color: "#0d7a4e", emoji: "💳", realName: "Sachin Mehra" },
+  CMO:  { color: "#c2410c", emoji: "📊", realName: "Julia White" },
+  Risk: { color: "#6d28d9", emoji: "🏦", realName: "Ashley Bacon" },
+};
+
+const STANCE_STYLE: Record<string, { color: string; bg: string; border: string; label: string }> = {
+  approve:     { color: "#0d7a4e", bg: "#e8f8f1", border: "#a8dfc5", label: "Approve" },
+  conditional: { color: "#b45309", bg: "#fef9ec", border: "#f0d080", label: "Conditional" },
+  reject:      { color: "#c0392b", bg: "#fdf0ee", border: "#f5b8b2", label: "Reject" },
+  idle:        { color: "#8a9bb8", bg: "#f4f6fa", border: "#e2e6f0", label: "Pending" },
 };
 
 export default function ConfidenceMeter({ agentStates, finalConfidence, finalVerdict }: Props) {
   const [displayScore, setDisplayScore] = useState(50);
-  const [prevScore, setPrevScore] = useState(50);
 
-  // Calculate live weighted score from current stances
   const liveScore = (() => {
     let totalWeight = 0;
     let weightedSum = 0;
@@ -46,37 +51,43 @@ export default function ConfidenceMeter({ agentStates, finalConfidence, finalVer
     return totalWeight > 0 ? Math.round((weightedSum / totalWeight) * 100) : 50;
   })();
 
-  const score = finalConfidence !== undefined ? Math.round(finalConfidence * 100) : liveScore;
+  const score = finalConfidence !== undefined
+    ? Math.round(finalConfidence * 100)
+    : liveScore;
+
   const anySpoken = Object.values(agentStates).some(s => s.hasSpoken);
 
   useEffect(() => {
-    setPrevScore(displayScore);
-    const steps = 20;
     const diff = score - displayScore;
+    const steps = 24;
     let step = 0;
     const interval = setInterval(() => {
       step++;
       setDisplayScore(prev => {
-        const next = Math.round(prev + (diff / steps));
+        const next = Math.round(prev + diff / steps);
         if (step >= steps) { clearInterval(interval); return score; }
         return next;
       });
-    }, 30);
+    }, 25);
     return () => clearInterval(interval);
   }, [score]);
 
   const verdict = finalVerdict ||
-    (score >= 70 ? "Approve" : score >= 45 ? "Conditional" : "Reject");
-  const color = score >= 70 ? "#2dd4a0" : score >= 45 ? "#e8a830" : "#e85555";
+    (displayScore >= 70 ? "Approve" : displayScore >= 45 ? "Conditional" : "Reject");
 
-  // Arc path for the gauge
-  const R = 54;
-  const cx = 70;
-  const cy = 70;
+  const verdictStyle = verdict === "Approve" || verdict === "Approved"
+    ? { color: "#0d7a4e", trackColor: "#0d7a4e" }
+    : verdict === "Reject" || verdict === "Rejected"
+    ? { color: "#c0392b", trackColor: "#c0392b" }
+    : { color: "#b45309", trackColor: "#b45309" };
+
+  // SVG arc helpers
+  const R = 52;
+  const cx = 68;
+  const cy = 72;
   const startAngle = -210;
   const endAngle = 30;
   const totalDeg = endAngle - startAngle;
-  const scoreDeg = startAngle + (displayScore / 100) * totalDeg;
 
   function polarToXY(angle: number, r: number) {
     const rad = (angle * Math.PI) / 180;
@@ -90,124 +101,168 @@ export default function ConfidenceMeter({ agentStates, finalConfidence, finalVer
     return `M ${s.x} ${s.y} A ${r} ${r} 0 ${large} 1 ${e.x} ${e.y}`;
   }
 
-  const needle = polarToXY(scoreDeg, R - 10);
+  const scoreDeg = startAngle + (displayScore / 100) * totalDeg;
+  const needle = polarToXY(scoreDeg, R - 8);
 
   return (
     <div style={{
-      background: "var(--surface)",
-      border: "1px solid var(--border)",
+      background: "#ffffff",
+      border: "1px solid #e2e6f0",
       borderRadius: 14,
-      padding: "14px 16px",
-      margin: "0 12px 10px",
-      flexShrink: 0,
+      padding: "16px 20px",
+      boxShadow: "0 1px 4px rgba(30,40,80,0.08)",
     }}>
+      {/* Header */}
       <div style={{
-        fontSize: 9, color: "#4a566e",
-        letterSpacing: "0.15em", marginBottom: 12,
-        textTransform: "uppercase",
+        fontSize: 12, fontWeight: 700, color: "#8a9bb8",
+        letterSpacing: "0.08em", marginBottom: 14,
+        textTransform: "uppercase" as const,
       }}>
         Live Board Confidence
       </div>
 
-      {/* Gauge */}
-      <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-        <svg width={140} height={90} viewBox="0 0 140 90">
-          {/* Background arc */}
-          <path
-            d={arcPath(startAngle, endAngle, R)}
-            fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={10}
-            strokeLinecap="round"
-          />
-          {/* Reject zone */}
-          <path
-            d={arcPath(startAngle, startAngle + totalDeg * 0.45, R)}
-            fill="none" stroke="rgba(232,85,85,0.25)" strokeWidth={10}
-            strokeLinecap="round"
-          />
-          {/* Conditional zone */}
-          <path
-            d={arcPath(startAngle + totalDeg * 0.45, startAngle + totalDeg * 0.70, R)}
-            fill="none" stroke="rgba(232,168,48,0.25)" strokeWidth={10}
-            strokeLinecap="round"
-          />
-          {/* Approve zone */}
-          <path
-            d={arcPath(startAngle + totalDeg * 0.70, endAngle, R)}
-            fill="none" stroke="rgba(45,212,160,0.25)" strokeWidth={10}
-            strokeLinecap="round"
-          />
+      <div style={{ display: "flex", gap: 20, alignItems: "center" }}>
 
-          {/* Active fill */}
-          {anySpoken && (
+        {/* Gauge */}
+        <div style={{ flexShrink: 0 }}>
+          <svg width={136} height={92} viewBox="0 0 136 92">
+            {/* Background track */}
             <path
-              d={arcPath(startAngle, scoreDeg, R)}
-              fill="none"
-              stroke={color}
-              strokeWidth={10}
+              d={arcPath(startAngle, endAngle, R)}
+              fill="none" stroke="#f0f3f9" strokeWidth={10}
               strokeLinecap="round"
-              style={{ transition: "all 0.3s ease", filter: `drop-shadow(0 0 4px ${color})` }}
             />
-          )}
-
-          {/* Needle dot */}
-          {anySpoken && (
-            <circle
-              cx={needle.x} cy={needle.y} r={5}
-              fill={color}
-              style={{ filter: `drop-shadow(0 0 6px ${color})`, transition: "all 0.3s ease" }}
+            {/* Zone: reject */}
+            <path
+              d={arcPath(startAngle, startAngle + totalDeg * 0.45, R)}
+              fill="none" stroke="#fde8e6" strokeWidth={10}
+              strokeLinecap="round"
             />
-          )}
+            {/* Zone: conditional */}
+            <path
+              d={arcPath(startAngle + totalDeg * 0.45, startAngle + totalDeg * 0.70, R)}
+              fill="none" stroke="#fef3d0" strokeWidth={10}
+              strokeLinecap="round"
+            />
+            {/* Zone: approve */}
+            <path
+              d={arcPath(startAngle + totalDeg * 0.70, endAngle, R)}
+              fill="none" stroke="#d4f4e7" strokeWidth={10}
+              strokeLinecap="round"
+            />
 
-          {/* Center score */}
-          <text x={cx} y={cy + 8} textAnchor="middle"
-            style={{ fontFamily: "DM Mono, monospace", fontSize: 22, fontWeight: 700, fill: anySpoken ? color : "#4a566e" }}>
-            {anySpoken ? `${displayScore}%` : "--"}
-          </text>
-          <text x={cx} y={cy + 22} textAnchor="middle"
-            style={{ fontSize: 8, fill: "#4a566e", fontFamily: "DM Sans, sans-serif", letterSpacing: "0.1em" }}>
-            {anySpoken ? verdict.toUpperCase() : "PENDING"}
-          </text>
-        </svg>
+            {/* Active fill */}
+            {anySpoken && (
+              <path
+                d={arcPath(startAngle, scoreDeg, R)}
+                fill="none"
+                stroke={verdictStyle.trackColor}
+                strokeWidth={10}
+                strokeLinecap="round"
+                style={{ transition: "all 0.4s ease" }}
+              />
+            )}
 
-        {/* Per-agent mini bars */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 6 }}>
+            {/* Needle dot */}
+            {anySpoken && (
+              <circle
+                cx={needle.x} cy={needle.y} r={5}
+                fill={verdictStyle.color}
+                stroke="#ffffff" strokeWidth={2}
+                style={{ transition: "all 0.4s ease" }}
+              />
+            )}
+
+            {/* Center text */}
+            <text
+              x={cx} y={cy + 6}
+              textAnchor="middle"
+              style={{
+                fontFamily: "Inter, sans-serif",
+                fontSize: anySpoken ? 22 : 18,
+                fontWeight: 800,
+                fill: anySpoken ? verdictStyle.color : "#c0c8d8",
+              }}
+            >
+              {anySpoken ? `${displayScore}%` : "--"}
+            </text>
+            <text
+              x={cx} y={cy + 20}
+              textAnchor="middle"
+              style={{
+                fontFamily: "Inter, sans-serif",
+                fontSize: 9,
+                fontWeight: 600,
+                fill: anySpoken ? verdictStyle.color : "#c0c8d8",
+                letterSpacing: "0.08em",
+              }}
+            >
+              {anySpoken ? verdict.toUpperCase() : "PENDING"}
+            </text>
+          </svg>
+        </div>
+
+        {/* Per-agent bars */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 8 }}>
           {Object.entries(AGENT_META).map(([key, meta]) => {
             const state = agentStates[key];
             const spoken = state?.hasSpoken;
             const stance = state?.stance || "idle";
             const sc = STANCE_SCORE[stance] ?? 0.5;
             const w = WEIGHTS[key];
-            const stanceColor = stance === "approve" ? "#2dd4a0"
-              : stance === "reject" ? "#e85555"
-              : stance === "conditional" ? "#e8a830"
-              : "#2a3040";
+            const ss = STANCE_STYLE[stance];
 
             return (
               <div key={key}>
-                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 3 }}>
-                  <span style={{ fontSize: 9, color: spoken ? meta.color : "#4a566e" }}>
-                    {meta.emoji} {meta.realName.split(" ")[0]}
-                  </span>
-                  <span style={{ fontSize: 9, color: spoken ? stanceColor : "#2a3040", textTransform: "uppercase" }}>
-                    {spoken ? stance : "—"}
-                  </span>
-                </div>
+                {/* Label row */}
                 <div style={{
-                  height: 4, borderRadius: 99,
-                  background: "rgba(255,255,255,0.05)",
+                  display: "flex", justifyContent: "space-between",
+                  alignItems: "center", marginBottom: 4,
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontSize: 13 }}>{meta.emoji}</span>
+                    <span style={{
+                      fontSize: 13, fontWeight: 600,
+                      color: spoken ? meta.color : "#c0c8d8",
+                    }}>
+                      {meta.realName.split(" ")[0]}
+                    </span>
+                    <span style={{
+                      fontSize: 11, color: "#8a9bb8",
+                      fontFamily: "monospace",
+                    }}>
+                      {Math.round(w * 100)}%
+                    </span>
+                  </div>
+                  {spoken ? (
+                    <span style={{
+                      fontSize: 11, fontWeight: 700,
+                      color: ss.color, background: ss.bg,
+                      border: `1px solid ${ss.border}`,
+                      padding: "1px 8px", borderRadius: 20,
+                      textTransform: "uppercase" as const,
+                    }}>
+                      {ss.label}
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: 11, color: "#c0c8d8" }}>—</span>
+                  )}
+                </div>
+
+                {/* Progress bar */}
+                <div style={{
+                  height: 6, borderRadius: 99,
+                  background: "#f0f3f9",
                   overflow: "hidden",
+                  border: "1px solid #e2e6f0",
                 }}>
                   <div style={{
                     height: "100%",
                     width: spoken ? `${sc * 100}%` : "0%",
-                    background: stanceColor,
+                    background: ss.color,
                     borderRadius: 99,
-                    transition: "width 0.6s ease",
-                    boxShadow: spoken ? `0 0 6px ${stanceColor}` : "none",
+                    transition: "width 0.6s cubic-bezier(0.16,1,0.3,1)",
                   }} />
-                </div>
-                <div style={{ fontSize: 8, color: "#2a3040", marginTop: 1 }}>
-                  {Math.round(w * 100)}% weight
                 </div>
               </div>
             );

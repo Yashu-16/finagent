@@ -367,6 +367,14 @@ export default function Office3D({ agentStates }: Props) {
       camera.aspect = w / h;
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
+      mount.appendChild(renderer.domElement);
+
+    // Force correct size on first render
+    const w0 = mount.clientWidth || 600;
+    const h0 = mount.clientHeight || 400;
+    camera.aspect = w0 / h0;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w0, h0);
     };
     window.addEventListener("resize", onResize);
 
@@ -378,5 +386,10 @@ export default function Office3D({ agentStates }: Props) {
     };
   }, []);
 
-  return <div ref={mountRef} style={{ width: "100%", height: "100%", display: "block" }} />;
+  return (
+    <div
+      ref={mountRef}
+      style={{ width: "100%", height: "100%", display: "block", minHeight: 300 }}
+    />
+  );
 }

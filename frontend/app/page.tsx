@@ -29,21 +29,23 @@ interface AgentState {
   prevStance: "approve" | "reject" | "conditional" | "idle";
 }
 
-const AGENT_META: Record<string, { color: string; emoji: string; title: string; realName: string; company: string }> = {
-  CEO:  { color: "#818cf8", emoji: "🚀", title: "Chief Executive Officer", realName: "Elon Musk",     company: "Tesla / SpaceX / X" },
-  CFO:  { color: "#34d399", emoji: "💳", title: "Chief Financial Officer", realName: "Sachin Mehra",  company: "Mastercard" },
-  CMO:  { color: "#fb923c", emoji: "📊", title: "Chief Marketing Officer", realName: "Julia White",   company: "SAP" },
-  Risk: { color: "#c084fc", emoji: "🏦", title: "Chief Risk Officer",      realName: "Ashley Bacon",  company: "JP Morgan Chase" },
+const AGENT_META: Record<string, {
+  color: string; bg: string; border: string;
+  emoji: string; title: string; realName: string; company: string;
+}> = {
+  CEO:  { color: "#3b5bdb", bg: "#eef2ff", border: "#c5d0fa", emoji: "🚀", title: "Chief Executive Officer", realName: "Elon Musk",    company: "Tesla · SpaceX · X" },
+  CFO:  { color: "#0d7a4e", bg: "#e8f8f1", border: "#a8dfc5", emoji: "💳", title: "Chief Financial Officer", realName: "Sachin Mehra", company: "Mastercard" },
+  CMO:  { color: "#c2410c", bg: "#fff4ee", border: "#fbc99a", emoji: "📊", title: "Chief Marketing Officer", realName: "Julia White",  company: "SAP" },
+  Risk: { color: "#6d28d9", bg: "#f5f3ff", border: "#c4b5fd", emoji: "🏦", title: "Chief Risk Officer",      realName: "Ashley Bacon", company: "JP Morgan Chase" },
 };
 
-const WEIGHTS: Record<string, number> = { CEO: 50, CFO: 17, CMO: 17, Risk: 16 };
+const DEFAULT_WEIGHTS: Record<string, number> = { CEO: 50, CFO: 17, CMO: 17, Risk: 16 };
 
-const STANCE_COLOR: Record<string, string> = {
-  approve: "#34d399", conditional: "#fbbf24", reject: "#f87171", idle: "#5a6385",
-};
-
-const STANCE_BG: Record<string, string> = {
-  approve: "rgba(52,211,153,0.15)", conditional: "rgba(251,191,36,0.15)", reject: "rgba(248,113,113,0.15)", idle: "rgba(90,99,133,0.15)",
+const STANCE_STYLE: Record<string, { color: string; bg: string; border: string; label: string }> = {
+  approve:     { color: "#0d7a4e", bg: "#e8f8f1", border: "#a8dfc5", label: "Approve" },
+  conditional: { color: "#b45309", bg: "#fef9ec", border: "#f0d080", label: "Conditional" },
+  reject:      { color: "#c0392b", bg: "#fdf0ee", border: "#f5b8b2", label: "Reject" },
+  idle:        { color: "#8a9bb8", bg: "#f4f6fa", border: "#e2e6f0", label: "Pending" },
 };
 
 const SAMPLES = [
@@ -61,44 +63,97 @@ function safeStr(val: unknown): string {
   return String(val ?? "");
 }
 
-function StanceChangeBanner({ changes }: { changes: { agent: string; from: string; to: string }[] }) {
-  if (changes.length === 0) return null;
+// ── Stance badge ──────────────────────────────────────────────────────────────
+function StanceBadge({ stance }: { stance: string }) {
+  const s = STANCE_STYLE[stance] || STANCE_STYLE.idle;
+  return (
+    <span style={{
+      fontSize: 11, fontWeight: 600,
+      color: s.color, background: s.bg,
+      border: `1px solid ${s.border}`,
+      padding: "2px 8px", borderRadius: 20,
+      letterSpacing: "0.02em", whiteSpace: "nowrap" as const,
+    }}>
+      {s.label}
+    </span>
+  );
+}
+
+// ── Stance change toast ───────────────────────────────────────────────────────
+function StanceToast({ changes }: { changes: { agent: string; from: string; to: string }[] }) {
+  if (!changes.length) return null;
   const latest = changes[changes.length - 1];
   const meta = AGENT_META[latest.agent];
-  const toColor = STANCE_COLOR[latest.to] || "#5a6385";
+  const toStyle = STANCE_STYLE[latest.to] || STANCE_STYLE.idle;
   return (
     <div style={{
-      position: "fixed", top: 70, left: "50%", transform: "translateX(-50%)",
+      position: "fixed", top: 80, left: "50%", transform: "translateX(-50%)",
       zIndex: 999, pointerEvents: "none", animation: "fadeUp 0.3s ease both",
     }}>
       <div style={{
-        background: "var(--surface2)",
-        border: `1.5px solid ${toColor}`,
+        background: "var(--surface)", border: `1.5px solid ${toStyle.border}`,
         borderRadius: 12, padding: "10px 20px",
-        backdropFilter: "blur(12px)",
-        textAlign: "center",
-        boxShadow: `0 8px 32px rgba(0,0,0,0.4), 0 0 20px ${toColor}30`,
+        boxShadow: "0 8px 32px rgba(30,40,80,0.15)",
+        display: "flex", alignItems: "center", gap: 10,
       }}>
-        <div style={{ fontSize: 13, color: toColor, fontWeight: 700, letterSpacing: "0.05em" }}>
-          ⚡ STANCE CHANGED
-        </div>
-        <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 3 }}>
-          {meta?.realName} ({latest.agent}): {latest.from.toUpperCase()} → {latest.to.toUpperCase()}
+        <span style={{ fontSize: 18 }}>{meta?.emoji}</span>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>
+            Stance Changed — {meta?.realName}
+          </div>
+          <div style={{ fontSize: 12, color: "var(--text3)" }}>
+            {latest.from.toUpperCase()} → {latest.to.toUpperCase()}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
+// ── Agent card ────────────────────────────────────────────────────────────────
+function AgentCard({ agentKey, state }: { agentKey: string; state: AgentState }) {
+  const meta = AGENT_META[agentKey];
+  const isActive = state.active;
+  return (
+    <div style={{
+      background: isActive ? meta.bg : "var(--surface2)",
+      border: `1.5px solid ${isActive ? meta.border : "var(--border)"}`,
+      borderRadius: 10, padding: "8px 12px",
+      flexShrink: 0, width: "fit-content",
+      boxShadow: isActive ? `0 0 0 3px ${meta.bg}` : "none",
+      transition: "all 0.25s ease",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+        <div style={{
+          width: 30, height: 30, borderRadius: 7,
+          background: meta.bg, border: `1.5px solid ${meta.border}`,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 14, flexShrink: 0,
+        }}>{meta.emoji}</div>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: meta.color, lineHeight: 1.2, whiteSpace: "nowrap" as const }}>
+            {meta.realName}
+          </div>
+          <div style={{ fontSize: 10, color: "var(--text3)", marginTop: 1, whiteSpace: "nowrap" as const }}>
+            {meta.company}
+          </div>
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 4, flexWrap: "wrap" as const }}>
+        <PersonalityBadge agentKey={agentKey} />
+        {state.hasSpoken && <StanceBadge stance={state.stance} />}
+      </div>
+    </div>
+  );
+}
+
+// ── Chat bubble ───────────────────────────────────────────────────────────────
 function ChatBubble({ msg, idx }: { msg: ChatMessage; idx: number }) {
   if (msg.kind === "system") {
     return (
-      <div style={{
-        textAlign: "center", margin: "20px 0 14px",
-        display: "flex", alignItems: "center", gap: 10,
-      }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "20px 0 16px" }}>
         <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
-        <span style={{ fontSize: 11, color: "var(--gold)", letterSpacing: "0.12em", fontWeight: 600 }}>
+        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--gold)", letterSpacing: "0.08em", whiteSpace: "nowrap" as const }}>
           {msg.text}
         </span>
         <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
@@ -106,120 +161,58 @@ function ChatBubble({ msg, idx }: { msg: ChatMessage; idx: number }) {
     );
   }
   const meta = AGENT_META[msg.agent];
-  const color = meta?.color || "#888";
-  const stanceColor = STANCE_COLOR[msg.stance] || "var(--muted)";
-  const stanceBg = STANCE_BG[msg.stance] || "rgba(90,99,133,0.15)";
-
   return (
     <div className="slide-l" style={{ animationDelay: `${Math.min(idx * 0.02, 0.2)}s`, marginBottom: 16 }}>
-      {/* Agent header */}
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
         <div style={{
-          width: 32, height: 32, borderRadius: 8,
-          background: color + "20",
-          border: `1.5px solid ${color}40`,
+          width: 34, height: 34, borderRadius: 8,
+          background: meta?.bg || "#f4f6fa",
+          border: `1.5px solid ${meta?.border || "var(--border)"}`,
           display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 15, flexShrink: 0,
-        }}>
-          {meta?.emoji}
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-            <span style={{ fontSize: 13, fontWeight: 600, color }}>{meta?.realName || msg.agent}</span>
-            <span style={{ fontSize: 11, color: "var(--muted)" }}>·</span>
-            <span style={{ fontSize: 11, color: "var(--text3)" }}>{msg.agent}</span>
+          fontSize: 16, flexShrink: 0,
+        }}>{meta?.emoji}</div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" as const }}>
+            <span style={{ fontSize: 14, fontWeight: 700, color: meta?.color || "var(--text)" }}>
+              {meta?.realName || msg.agent}
+            </span>
+            <span style={{ fontSize: 12, color: "var(--muted)" }}>{meta?.title}</span>
             {msg.target && (
               <>
-                <span style={{ fontSize: 11, color: "var(--muted)" }}>→</span>
-                <span style={{ fontSize: 12, color: AGENT_META[msg.target]?.color || "var(--muted)", fontWeight: 500 }}>
+                <span style={{ fontSize: 12, color: "var(--muted)" }}>→</span>
+                <span style={{ fontSize: 13, color: AGENT_META[msg.target]?.color, fontWeight: 600 }}>
                   {AGENT_META[msg.target]?.realName || msg.target}
                 </span>
               </>
             )}
             {msg.round && (
               <span style={{
-                fontSize: 10, color: "var(--gold)", background: "var(--gold-dim)",
-                padding: "1px 6px", borderRadius: 4, fontWeight: 600,
-              }}>R{msg.round}</span>
+                fontSize: 11, fontWeight: 600, color: "var(--gold)",
+                background: "var(--gold-light)", border: "1px solid var(--gold-border)",
+                padding: "1px 7px", borderRadius: 4,
+              }}>Round {msg.round}</span>
             )}
           </div>
         </div>
-        <span style={{
-          fontSize: 11, fontWeight: 700, color: stanceColor,
-          background: stanceBg, padding: "3px 10px",
-          borderRadius: 20, textTransform: "uppercase" as const,
-          border: `1px solid ${stanceColor}30`,
-          letterSpacing: "0.05em",
-        }}>{msg.stance}</span>
+        <StanceBadge stance={msg.stance} />
       </div>
-
-      {/* Message bubble */}
       <div style={{
-        background: "var(--surface)",
-        border: `1px solid ${color}25`,
-        borderLeft: `3px solid ${color}`,
-        borderRadius: "0 12px 12px 12px",
-        padding: "12px 14px",
-        fontSize: 13.5,
-        lineHeight: 1.65,
-        color: "var(--text2)",
-      }}>
-        {msg.text}
-      </div>
+        background: "var(--surface)", border: "1px solid var(--border)",
+        borderLeft: `3px solid ${meta?.color || "var(--border2)"}`,
+        borderRadius: "0 10px 10px 10px",
+        padding: "14px 16px", fontSize: 14, lineHeight: 1.7,
+        color: "var(--text2)", boxShadow: "0 1px 3px var(--shadow)",
+      }}>{msg.text}</div>
     </div>
   );
 }
 
-function AgentLegendCard({ agentKey, state }: { agentKey: string; state: AgentState }) {
-  const meta = AGENT_META[agentKey];
-  const color = meta.color;
-  const stanceColor = STANCE_COLOR[state.stance];
-  const stanceBg = STANCE_BG[state.stance];
-  const isActive = state.active;
-
-  return (
-    <div style={{
-      background: isActive ? color + "12" : "var(--surface)",
-      border: `1.5px solid ${isActive ? color + "60" : "var(--border)"}`,
-      borderRadius: 12, padding: "10px 14px",
-      transition: "all 0.3s ease",
-      boxShadow: isActive ? `0 0 20px ${color}25, var(--shadow-sm)` : "var(--shadow-sm)",
-      minWidth: 160,
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-        <div style={{
-          width: 34, height: 34, borderRadius: 8,
-          background: color + "18",
-          border: `1.5px solid ${isActive ? color : color + "40"}`,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          fontSize: 16, flexShrink: 0,
-          boxShadow: isActive ? `0 0 12px ${color}40` : "none",
-          transition: "all 0.3s",
-        }}>
-          {meta.emoji}
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color, lineHeight: 1.2 }}>{meta.realName}</div>
-          <div style={{ fontSize: 10, color: "var(--text3)", marginTop: 1 }}>{meta.company}</div>
-        </div>
-        {state.hasSpoken && (
-          <span style={{
-            fontSize: 10, fontWeight: 700, color: stanceColor,
-            background: stanceBg, padding: "2px 8px",
-            borderRadius: 20, textTransform: "uppercase" as const,
-            border: `1px solid ${stanceColor}30`, whiteSpace: "nowrap",
-          }}>{state.stance}</span>
-        )}
-      </div>
-      <PersonalityBadge agentKey={agentKey} />
-    </div>
-  );
-}
-
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function Home() {
   const [scenario, setScenario] = useState("");
   const [rounds, setRounds] = useState(2);
   const [mode, setMode] = useState<"weighted" | "majority">("weighted");
+  const [customWeights, setCustomWeights] = useState<Record<string, number>>({ ...DEFAULT_WEIGHTS });
   const [loading, setLoading] = useState(false);
   const [statusText, setStatusText] = useState("Ready to convene");
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -240,6 +233,16 @@ export default function Home() {
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const msgCounter = useRef(0);
   const stanceFlashTimer = useRef<NodeJS.Timeout | null>(null);
+
+  const totalWeight = Object.values(customWeights).reduce((a, b) => a + b, 0);
+
+  function handleWeightChange(agent: string, value: number) {
+    setCustomWeights(prev => ({ ...prev, [agent]: value }));
+  }
+
+  function resetWeights() {
+    setCustomWeights({ ...DEFAULT_WEIGHTS });
+  }
 
   useEffect(() => {
     chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -272,70 +275,99 @@ export default function Home() {
   }
 
   async function handleSimulate() {
-    if (!scenario.trim() || loading) return;
+    if (!scenario.trim() || loading || totalWeight !== 100) return;
     setLoading(true);
     setError(null);
     setMessages([]);
     setDecision(null);
     setShowInput(false);
-    setShowReplay(false);
     resetAll();
     setStatusText("Calling the board to order…");
     msgCounter.current = 0;
 
     try {
-      await streamSimulation(scenario, { debate_rounds: rounds, decision_mode: mode }, (event: StreamEvent) => {
-        switch (event.type) {
-          case "session": setSessionId(event.session_id); break;
-          case "status":
-            setStatusText(event.text);
-            if (event.agent) setAgentStates(prev => ({ ...prev, [event.agent!]: { ...prev[event.agent!], active: true } }));
-            break;
-          case "round_start":
-            setMessages(prev => [...prev, { id: `div-r${event.round}`, agent: "system", text: `── Debate Round ${event.round} ──`, stance: "idle", kind: "system" }]);
-            setAgentStates(prev => { const n = { ...prev }; for (const k of Object.keys(n)) n[k] = { ...n[k], active: false }; return n; });
-            break;
-          case "position": {
-            const id = `pos-${msgCounter.current++}`;
-            updateAgentStance(event.agent, event.stance as AgentState["stance"], true);
-            setMessages(prev => [...prev, { id, agent: event.agent, text: event.reasoning, stance: event.stance, kind: "position" }]);
-            break;
+      await streamSimulation(
+        scenario,
+        {
+          debate_rounds: rounds,
+          decision_mode: mode,
+          agent_weights: customWeights,
+        },
+        (event: StreamEvent) => {
+          switch (event.type) {
+            case "session": setSessionId(event.session_id); break;
+            case "status":
+              setStatusText(event.text);
+              if (event.agent) setAgentStates(prev => ({ ...prev, [event.agent!]: { ...prev[event.agent!], active: true } }));
+              break;
+            case "round_start":
+              setMessages(prev => [...prev, {
+                id: `div-r${event.round}`, agent: "system",
+                text: `── Debate Round ${event.round} ──`,
+                stance: "idle", kind: "system",
+              }]);
+              setAgentStates(prev => {
+                const n = { ...prev };
+                for (const k of Object.keys(n)) n[k] = { ...n[k], active: false };
+                return n;
+              });
+              break;
+            case "position": {
+              const id = `pos-${msgCounter.current++}`;
+              updateAgentStance(event.agent, event.stance as AgentState["stance"], true);
+              setMessages(prev => [...prev, {
+                id, agent: event.agent, text: event.reasoning,
+                stance: event.stance, kind: "position",
+              }]);
+              break;
+            }
+            case "exchange": {
+              const id = `ex-${msgCounter.current++}`;
+              updateAgentStance(event.agent, event.stance as AgentState["stance"], true);
+              setMessages(prev => [...prev, {
+                id, agent: event.agent, text: event.argument,
+                stance: event.stance, kind: "debate",
+                round: event.round, target: event.target_agent,
+              }]);
+              break;
+            }
+            case "decision":
+              setDecision(event as unknown as FinalDecision);
+              setStatusText("Board has reached a decision.");
+              setAgentStates(prev => {
+                const n = { ...prev };
+                for (const k of Object.keys(n)) n[k] = { ...n[k], active: false };
+                return n;
+              });
+              break;
+            case "done":
+              setLoading(false);
+              setStatusText("Session complete.");
+              break;
+            case "error":
+              setError(`${event.agent}: ${event.message}`);
+              break;
           }
-          case "exchange": {
-            const id = `ex-${msgCounter.current++}`;
-            updateAgentStance(event.agent, event.stance as AgentState["stance"], true);
-            setMessages(prev => [...prev, { id, agent: event.agent, text: event.argument, stance: event.stance, kind: "debate", round: event.round, target: event.target_agent }]);
-            break;
-          }
-          case "decision":
-            setDecision(event as unknown as FinalDecision);
-            setStatusText("Board has reached a decision.");
-            setAgentStates(prev => { const n = { ...prev }; for (const k of Object.keys(n)) n[k] = { ...n[k], active: false }; return n; });
-            break;
-          case "done": setLoading(false); setStatusText("Session complete."); break;
-          case "error": setError(`${event.agent}: ${event.message}`); break;
         }
-      });
+      );
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : "Connection failed. Is the backend running on port 8000?");
       setLoading(false);
     }
   }
 
-  const verdictColor = decision
-    ? decision.verdict === "Approved" ? "#34d399"
-      : decision.verdict === "Rejected" ? "#f87171" : "#fbbf24"
-    : "var(--gold)";
-
-  const verdictBg = decision
-    ? decision.verdict === "Approved" ? "rgba(52,211,153,0.08)"
-      : decision.verdict === "Rejected" ? "rgba(248,113,113,0.08)" : "rgba(251,191,36,0.08)"
-    : "transparent";
+  const verdictStyle = decision
+    ? decision.verdict === "Approved"
+      ? { color: "var(--approve)", bg: "var(--approve-bg)", border: "var(--approve-bd)", icon: "✓" }
+      : decision.verdict === "Rejected"
+      ? { color: "var(--reject)",  bg: "var(--reject-bg)",  border: "var(--reject-bd)",  icon: "✕" }
+      : { color: "var(--cond)",    bg: "var(--cond-bg)",    border: "var(--cond-bd)",    icon: "◈" }
+    : null;
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", overflow: "hidden", background: "var(--bg)" }}>
 
-      <StanceChangeBanner changes={stanceChanges} />
+      <StanceToast changes={stanceChanges} />
 
       {showReplay && <ReplayTimeline messages={messages} onClose={() => setShowReplay(false)} />}
       {showCompare && <CompareView onClose={() => setShowCompare(false)} />}
@@ -348,11 +380,18 @@ export default function Home() {
             stance: m.stance, reasoning: m.text, key_concern: "",
           }))}
           debateRounds={(() => {
-            const rounds2: Record<number, typeof messages> = {};
-            messages.filter(m => m.kind === "debate").forEach(m => { const r = m.round || 1; if (!rounds2[r]) rounds2[r] = []; rounds2[r].push(m); });
-            return Object.entries(rounds2).map(([r, exs]) => ({
+            const r2: Record<number, typeof messages> = {};
+            messages.filter(m => m.kind === "debate").forEach(m => {
+              const r = m.round || 1;
+              if (!r2[r]) r2[r] = [];
+              r2[r].push(m);
+            });
+            return Object.entries(r2).map(([r, exs]) => ({
               round_number: Number(r),
-              exchanges: exs.map(e => ({ agent: e.agent, target_agent: e.target || "", argument: e.text, stance: e.stance })),
+              exchanges: exs.map(e => ({
+                agent: e.agent, target_agent: e.target || "",
+                argument: e.text, stance: e.stance,
+              })),
             }));
           })()}
           decision={decision}
@@ -360,92 +399,91 @@ export default function Home() {
         />
       )}
 
-      {/* ── HEADER ── */}
+      {/* ══ HEADER ══════════════════════════════════════════════════════════ */}
       <header style={{
-        height: 60, flexShrink: 0,
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        padding: "0 24px",
-        background: "var(--bg2)",
-        borderBottom: "1px solid var(--border)",
-        boxShadow: "0 1px 0 rgba(255,255,255,0.04)",
-        zIndex: 50,
+        height: 60, background: "var(--navy)",
+        display: "flex", alignItems: "center",
+        padding: "0 24px", gap: 20, flexShrink: 0,
+        boxShadow: "0 2px 12px rgba(0,0,0,0.2)", zIndex: 50,
       }}>
-        {/* Logo */}
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0 }}>
           <div style={{
-            width: 36, height: 36, borderRadius: 10,
-            background: "linear-gradient(135deg, var(--gold), var(--gold2))",
+            width: 38, height: 38, borderRadius: 10,
+            background: "linear-gradient(135deg, #e8c84a, #f5d96a)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 16, fontWeight: 900, color: "#1a1a2e",
-            boxShadow: "0 2px 12px rgba(232,200,74,0.4)",
+            fontSize: 17, fontWeight: 900, color: "#1a2744",
+            boxShadow: "0 2px 8px rgba(232,200,74,0.4)",
           }}>F</div>
           <div>
-            <div style={{ fontFamily: "Playfair Display, serif", fontSize: 20, fontWeight: 700, color: "var(--gold)", lineHeight: 1 }}>
+            <div style={{ fontSize: 19, fontWeight: 800, color: "#ffffff", letterSpacing: "-0.01em", lineHeight: 1.1 }}>
               FinAgent
             </div>
-            <div style={{ fontSize: 11, color: "var(--text3)", letterSpacing: "0.06em" }}>
-              AI BOARDROOM SIMULATOR
+            <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", letterSpacing: "0.1em" }}>
+              AI BOARDROOM
             </div>
           </div>
         </div>
 
-        {/* Status */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ width: 1, height: 30, background: "rgba(255,255,255,0.12)", flexShrink: 0 }} />
+
+        <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 10 }}>
           {loading && (
             <div style={{
               width: 8, height: 8, borderRadius: "50%",
-              background: "var(--cond)", boxShadow: "0 0 10px var(--cond)",
+              background: "#fbbf24", boxShadow: "0 0 8px #fbbf24",
               animation: "blink 1s ease infinite", flexShrink: 0,
             }} />
           )}
-          <span style={{ fontSize: 13, color: loading ? "var(--cond)" : "var(--text3)", fontWeight: loading ? 500 : 400 }}>
+          <span style={{
+            fontSize: 14, fontWeight: loading ? 500 : 400,
+            color: loading ? "#fbbf24" : "rgba(255,255,255,0.55)",
+          }}>
             {statusText}
           </span>
           {sessionId && (
             <span style={{
-              fontSize: 11, color: "var(--text3)", fontFamily: "DM Mono, monospace",
-              background: "var(--surface)", padding: "3px 10px", borderRadius: 6,
-              border: "1px solid var(--border)",
+              fontSize: 11, color: "rgba(255,255,255,0.35)",
+              fontFamily: "monospace",
+              background: "rgba(255,255,255,0.07)",
+              padding: "3px 10px", borderRadius: 6,
+              border: "1px solid rgba(255,255,255,0.1)",
             }}>{sessionId}</span>
           )}
         </div>
 
-        {/* Actions */}
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
           <button onClick={() => setShowCompare(true)} style={{
-            fontSize: 12, padding: "7px 14px", borderRadius: 8,
-            border: "1px solid var(--border2)",
-            background: "var(--surface)", color: "var(--text2)",
-            cursor: "pointer", fontFamily: "Inter, sans-serif", fontWeight: 500,
-            transition: "all 0.2s",
+            fontSize: 13, padding: "7px 14px", borderRadius: 8, fontWeight: 500,
+            background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.18)",
+            color: "rgba(255,255,255,0.85)", cursor: "pointer", fontFamily: "Inter, sans-serif",
           }}>⚖ Compare</button>
-          {decision && (<>
-            <button onClick={() => setShowReplay(true)} style={{
-              fontSize: 12, padding: "7px 14px", borderRadius: 8,
-              border: "1px solid rgba(232,200,74,0.3)",
-              background: "var(--gold-dim)", color: "var(--gold)",
-              cursor: "pointer", fontFamily: "Inter, sans-serif", fontWeight: 500,
-            }}>📽 Replay</button>
-            <button onClick={() => setShowExport(true)} style={{
-              fontSize: 12, padding: "7px 14px", borderRadius: 8,
-              border: "1px solid rgba(52,211,153,0.3)",
-              background: "rgba(52,211,153,0.1)", color: "var(--approve)",
-              cursor: "pointer", fontFamily: "Inter, sans-serif", fontWeight: 500,
-            }}>📄 Export</button>
-          </>)}
+          {decision && (
+            <>
+              <button onClick={() => setShowReplay(true)} style={{
+                fontSize: 13, padding: "7px 14px", borderRadius: 8, fontWeight: 500,
+                background: "rgba(232,200,74,0.18)", border: "1px solid rgba(232,200,74,0.35)",
+                color: "#e8c84a", cursor: "pointer", fontFamily: "Inter, sans-serif",
+              }}>📽 Replay</button>
+              <button onClick={() => setShowExport(true)} style={{
+                fontSize: 13, padding: "7px 14px", borderRadius: 8, fontWeight: 500,
+                background: "rgba(13,122,78,0.2)", border: "1px solid rgba(13,122,78,0.4)",
+                color: "#34d399", cursor: "pointer", fontFamily: "Inter, sans-serif",
+              }}>📄 Export</button>
+            </>
+          )}
           <button onClick={() => setShowInput(v => !v)} style={{
-            fontSize: 12, padding: "7px 14px", borderRadius: 8,
-            border: "1px solid var(--border)",
-            background: "transparent", color: "var(--text3)",
-            cursor: "pointer", fontFamily: "Inter, sans-serif",
-          }}>{showInput ? "Hide Input" : "New Scenario"}</button>
+            fontSize: 13, padding: "7px 14px", borderRadius: 8, fontWeight: 500,
+            background: "rgba(255,255,255,0.07)", border: "1px solid rgba(255,255,255,0.13)",
+            color: "rgba(255,255,255,0.6)", cursor: "pointer", fontFamily: "Inter, sans-serif",
+          }}>
+            {showInput ? "Hide Input" : "New Scenario"}
+          </button>
         </div>
       </header>
 
-      {/* ── BODY ── */}
+      {/* ══ BODY ════════════════════════════════════════════════════════════ */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
 
-        {/* History sidebar */}
         <HistorySidebar
           currentSessionId={sessionId}
           onLoad={(session) => {
@@ -460,15 +498,17 @@ export default function Home() {
               })),
               ...(full.debate_rounds || []).flatMap((r: any) =>
                 (r.exchanges || []).map((ex: any, i: number) => ({
-                  id: `loaded-ex-${r.round_number}-${i}`, agent: ex.agent,
-                  text: ex.argument, stance: ex.stance, kind: "debate" as const,
+                  id: `loaded-ex-${r.round_number}-${i}`,
+                  agent: ex.agent, text: ex.argument,
+                  stance: ex.stance, kind: "debate" as const,
                   round: r.round_number, target: ex.target_agent,
                 }))
               ),
             ]);
             setAgentStates(Object.fromEntries(
               (full.initial_positions || []).map((p: any) => [
-                p.agent, { stance: p.stance, active: false, hasSpoken: true, prevStance: "idle" as const },
+                p.agent,
+                { stance: p.stance, active: false, hasSpoken: true, prevStance: "idle" as const },
               ])
             ));
             setStatusText(`Loaded session ${session.session_id}`);
@@ -476,43 +516,106 @@ export default function Home() {
           }}
         />
 
-        {/* ── LEFT: 3D office + meter + verdict ── */}
-        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", position: "relative" }}>
+        {/* ── LEFT PANEL ───────────────────────────────────────────────── */}
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "auto", minWidth: 0 }}>
 
-          {/* Agent legend row */}
+          {/* ── Row 1 + Row 2: Agent cards + vote weight strip ── */}
           <div style={{
-            padding: "12px 16px 0",
-            display: "flex", gap: 10, flexWrap: "wrap", flexShrink: 0,
+            background: "var(--surface)",
+            borderBottom: "1px solid var(--border)",
+            flexShrink: 0,
           }}>
-            {Object.entries(AGENT_META).map(([key]) => (
-              <AgentLegendCard key={key} agentKey={key} state={agentStates[key]} />
-            ))}
-            {/* Vote weight badge */}
+            {/* Row 1: Agent cards */}
             <div style={{
-              display: "flex", flexDirection: "column", justifyContent: "center",
-              background: "var(--surface)", border: "1px solid var(--gold-dim)",
-              borderRadius: 12, padding: "10px 14px", gap: 4,
+              padding: "10px 16px 8px",
+              display: "flex", gap: 8, alignItems: "flex-start",
+              overflowX: "auto",
             }}>
-              <div style={{ fontSize: 12, color: "var(--gold)", fontWeight: 600 }}>⚖ Vote Weight</div>
-              {Object.entries(WEIGHTS).map(([k, w]) => (
-                <div key={k} style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                  <span style={{ fontSize: 11, color: AGENT_META[k]?.color, width: 30 }}>{k}</span>
-                  <div style={{ width: 60, height: 4, background: "var(--surface3)", borderRadius: 99, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${w * 2}%`, background: AGENT_META[k]?.color, borderRadius: 99 }} />
-                  </div>
-                  <span style={{ fontSize: 11, color: "var(--text3)", fontFamily: "DM Mono, monospace" }}>{w}%</span>
-                </div>
+              {Object.keys(AGENT_META).map(key => (
+                <AgentCard key={key} agentKey={key} state={agentStates[key]} />
               ))}
+            </div>
+
+            {/* Divider between rows */}
+            <div style={{ height: 1, background: "var(--border)", margin: "0 16px" }} />
+
+            {/* Row 2: Vote weight sliders — horizontal */}
+            <div style={{
+              padding: "10px 16px 12px",
+              display: "flex", gap: 16, alignItems: "center",
+              overflowX: "auto",
+            }}>
+              <span style={{
+                fontSize: 11, fontWeight: 700, color: "var(--gold)",
+                letterSpacing: "0.06em", whiteSpace: "nowrap" as const, flexShrink: 0,
+              }}>
+                ⚖ VOTE WEIGHTS
+              </span>
+
+              {Object.entries(customWeights).map(([k, w]) => {
+                const meta = AGENT_META[k];
+                return (
+                  <div key={k} style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                    <span style={{
+                      fontSize: 12, fontWeight: 600, color: meta.color,
+                      whiteSpace: "nowrap" as const,
+                    }}>
+                      {meta.emoji} {k}
+                    </span>
+                    <input
+                      type="range"
+                      min={0} max={100} step={1}
+                      value={w}
+                      onChange={e => handleWeightChange(k, Number(e.target.value))}
+                      style={{
+                        width: 90, height: 4,
+                        accentColor: meta.color,
+                        cursor: "pointer",
+                      }}
+                    />
+                    <span style={{
+                      fontSize: 12, fontWeight: 700, fontFamily: "monospace",
+                      color: "var(--text2)", background: "var(--surface2)",
+                      border: "1px solid var(--border)",
+                      padding: "1px 7px", borderRadius: 4,
+                      minWidth: 38, textAlign: "center" as const,
+                    }}>{w}%</span>
+                  </div>
+                );
+              })}
+
+              {/* Total indicator */}
+              <span style={{
+                fontSize: 12, fontWeight: 700,
+                color: totalWeight === 100 ? "var(--approve)" : "var(--reject)",
+                background: totalWeight === 100 ? "var(--approve-bg)" : "var(--reject-bg)",
+                border: `1px solid ${totalWeight === 100 ? "var(--approve-bd)" : "var(--reject-bd)"}`,
+                padding: "3px 10px", borderRadius: 20,
+                whiteSpace: "nowrap" as const, flexShrink: 0,
+              }}>
+                {totalWeight === 100 ? "✓ 100%" : `${totalWeight}% / 100%`}
+              </span>
+
+              {/* Reset button */}
+              <button onClick={resetWeights} style={{
+                fontSize: 12, padding: "4px 12px", borderRadius: 6,
+                background: "var(--surface2)", border: "1px solid var(--border)",
+                color: "var(--text3)", cursor: "pointer",
+                fontFamily: "Inter, sans-serif", fontWeight: 500,
+                whiteSpace: "nowrap" as const, flexShrink: 0,
+              }}>
+                ↺ Reset
+              </button>
             </div>
           </div>
 
-          {/* 3D canvas */}
-          <div style={{ flex: 1, minHeight: 0 }}>
+          {/* 3D office scene */}
+          <div style={{ height: 380, flexShrink: 0, position: "relative", background: "#1a2035" }}>
             <Office3D agentStates={agentStates} />
           </div>
 
           {/* Confidence meter */}
-          <div style={{ padding: "0 16px" }}>
+          <div style={{ padding: "8px 16px 4px", flexShrink: 0 }}>
             <ConfidenceMeter
               agentStates={agentStates}
               finalConfidence={decision?.confidence}
@@ -521,46 +624,45 @@ export default function Home() {
           </div>
 
           {/* Verdict banner */}
-          {decision && (
+          {decision && verdictStyle && (
             <div className="fade-up" style={{
-              margin: "0 16px 12px",
-              padding: "16px 20px",
-              background: verdictBg,
-              border: `1.5px solid ${verdictColor}40`,
-              borderRadius: 14,
-              display: "flex", alignItems: "center", gap: 16,
-              flexShrink: 0,
-              boxShadow: `0 4px 24px ${verdictColor}15`,
+              margin: "4px 16px 8px",
+              background: verdictStyle.bg,
+              border: `1.5px solid ${verdictStyle.border}`,
+              borderRadius: 14, padding: "14px 18px",
+              display: "flex", alignItems: "flex-start", gap: 14,
+              flexShrink: 0, boxShadow: "0 2px 12px var(--shadow)",
             }}>
               <div style={{
-                width: 48, height: 48, borderRadius: "50%",
-                background: verdictColor + "20", border: `2px solid ${verdictColor}`,
+                width: 44, height: 44, borderRadius: 12,
+                background: verdictStyle.color + "18",
+                border: `2px solid ${verdictStyle.color}40`,
                 display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 20, color: verdictColor, flexShrink: 0,
-                boxShadow: `0 0 20px ${verdictColor}30`,
-              }}>
-                {decision.verdict === "Approved" ? "✓" : decision.verdict === "Rejected" ? "✕" : "◈"}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 11, color: "var(--text3)", letterSpacing: "0.12em", marginBottom: 3, fontWeight: 600 }}>
-                  BOARD VERDICT
-                </div>
-                <div style={{ fontFamily: "Playfair Display, serif", fontSize: 22, fontWeight: 700, color: verdictColor, lineHeight: 1.1 }}>
-                  {decision.verdict}
-                </div>
-                <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 5, lineHeight: 1.6 }}>
+                fontSize: 20, color: verdictStyle.color, flexShrink: 0, fontWeight: 700,
+              }}>{verdictStyle.icon}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  fontSize: 11, fontWeight: 700, color: verdictStyle.color,
+                  letterSpacing: "0.1em", marginBottom: 2,
+                }}>BOARD VERDICT</div>
+                <div style={{
+                  fontSize: 20, fontWeight: 800, color: verdictStyle.color,
+                  lineHeight: 1.2, marginBottom: 6,
+                }}>{decision.verdict}</div>
+                <div style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.6 }}>
                   {safeStr(decision.rationale)}
                 </div>
               </div>
-              <div style={{ textAlign: "right", flexShrink: 0 }}>
-                <div style={{ fontSize: 36, fontWeight: 800, color: verdictColor, fontFamily: "DM Mono, monospace", lineHeight: 1 }}>
+              <div style={{ textAlign: "right" as const, flexShrink: 0 }}>
+                <div style={{ fontSize: 36, fontWeight: 800, color: verdictStyle.color, lineHeight: 1 }}>
                   {Math.round(decision.confidence * 100)}%
                 </div>
-                <div style={{ fontSize: 11, color: "var(--text3)", marginTop: 2 }}>confidence</div>
+                <div style={{ fontSize: 12, color: "var(--text3)", marginTop: 2 }}>confidence</div>
                 <button onClick={() => setShowReplay(true)} style={{
-                  marginTop: 6, fontSize: 11, padding: "3px 10px", borderRadius: 6,
-                  background: "var(--gold-dim)", border: "1px solid rgba(232,200,74,0.3)",
-                  color: "var(--gold)", cursor: "pointer", fontFamily: "Inter, sans-serif",
+                  marginTop: 6, fontSize: 11, padding: "4px 10px", borderRadius: 6,
+                  background: "var(--gold-light)", border: "1px solid var(--gold-border)",
+                  color: "var(--gold)", cursor: "pointer",
+                  fontFamily: "Inter, sans-serif", fontWeight: 500,
                 }}>📽 Replay</button>
               </div>
             </div>
@@ -570,29 +672,32 @@ export default function Home() {
           {showInput && (
             <div style={{
               borderTop: "1px solid var(--border)",
-              background: "var(--bg2)",
-              padding: "14px 16px", flexShrink: 0,
+              background: "var(--surface)",
+              padding: "12px 16px", flexShrink: 0,
             }}>
               {error && (
                 <div style={{
-                  marginBottom: 10, padding: "10px 14px", borderRadius: 10,
-                  background: "var(--reject-bg)", border: "1px solid rgba(248,113,113,0.3)",
+                  marginBottom: 10, padding: "10px 14px", borderRadius: 8,
+                  background: "var(--reject-bg)", border: "1px solid var(--reject-bd)",
                   fontSize: 13, color: "var(--reject)",
                 }}>⚠ {error}</div>
               )}
 
-              {/* Sample pills */}
-              <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 12, color: "var(--text3)", alignSelf: "center" }}>Try:</span>
+              <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" as const, alignItems: "center" }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text3)" }}>Try:</span>
                 {SAMPLES.map((s, i) => (
                   <button key={i} onClick={() => setScenario(s)} disabled={loading} style={{
-                    fontSize: 12, padding: "5px 12px", borderRadius: 20,
+                    fontSize: 12, padding: "4px 12px", borderRadius: 20,
                     border: "1px solid var(--border2)",
-                    background: "var(--surface)", color: "var(--text2)",
-                    cursor: "pointer", fontFamily: "Inter, sans-serif",
-                    transition: "all 0.2s",
+                    background: "var(--surface2)", color: "var(--text2)",
+                    cursor: "pointer", fontFamily: "Inter, sans-serif", fontWeight: 500,
                   }}>Sample {i + 1}</button>
                 ))}
+                {totalWeight !== 100 && (
+                  <span style={{ fontSize: 11, color: "var(--reject)", fontWeight: 500 }}>
+                    ⚠ Weights must total 100% ({totalWeight > 100 ? `remove ${totalWeight - 100}%` : `add ${100 - totalWeight}%`})
+                  </span>
+                )}
               </div>
 
               <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
@@ -600,50 +705,63 @@ export default function Home() {
                   value={scenario}
                   onChange={e => setScenario(e.target.value)}
                   disabled={loading}
-                  onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSimulate(); } }}
-                  placeholder="Describe the strategic decision for the board to evaluate… (Enter to submit)"
+                  onKeyDown={e => {
+                    if (e.key === "Enter" && !e.shiftKey) {
+                      e.preventDefault();
+                      handleSimulate();
+                    }
+                  }}
+                  placeholder="Describe the strategic decision for the board… (Enter to submit)"
                   rows={2}
                   style={{
                     flex: 1, resize: "none", outline: "none",
-                    background: "var(--surface)", border: "1.5px solid var(--border2)",
-                    borderRadius: 10, padding: "12px 14px",
-                    fontSize: 14, color: "var(--text)", lineHeight: 1.5,
+                    background: "var(--surface2)",
+                    border: "1.5px solid var(--border2)",
+                    borderRadius: 10, padding: "10px 13px",
+                    fontSize: 14, color: "var(--text)", lineHeight: 1.55,
                     fontFamily: "Inter, sans-serif",
-                    transition: "border-color 0.2s",
                   }}
                 />
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, flexShrink: 0 }}>
                   <div style={{ display: "flex", gap: 6 }}>
                     <select value={rounds} onChange={e => setRounds(+e.target.value)} disabled={loading} style={{
-                      background: "var(--surface)", border: "1px solid var(--border2)",
-                      color: "var(--text2)", borderRadius: 8, padding: "7px 8px",
-                      fontSize: 12, fontFamily: "Inter, sans-serif", outline: "none", cursor: "pointer",
+                      background: "var(--surface2)", border: "1.5px solid var(--border2)",
+                      color: "var(--text)", borderRadius: 8, padding: "7px 8px",
+                      fontSize: 13, fontFamily: "Inter, sans-serif", outline: "none",
+                      cursor: "pointer", fontWeight: 500,
                     }}>
                       {[1,2,3].map(n => <option key={n} value={n}>{n} rounds</option>)}
                     </select>
                     <select value={mode} onChange={e => setMode(e.target.value as "weighted"|"majority")} disabled={loading} style={{
-                      background: "var(--surface)", border: "1px solid var(--border2)",
-                      color: "var(--text2)", borderRadius: 8, padding: "7px 8px",
-                      fontSize: 12, fontFamily: "Inter, sans-serif", outline: "none", cursor: "pointer",
+                      background: "var(--surface2)", border: "1.5px solid var(--border2)",
+                      color: "var(--text)", borderRadius: 8, padding: "7px 8px",
+                      fontSize: 13, fontFamily: "Inter, sans-serif", outline: "none",
+                      cursor: "pointer", fontWeight: 500,
                     }}>
                       <option value="weighted">Weighted</option>
                       <option value="majority">Majority</option>
                     </select>
                   </div>
-                  <button onClick={handleSimulate} disabled={loading || !scenario.trim()} style={{
-                    padding: "11px 20px", borderRadius: 10,
-                    background: loading || !scenario.trim()
-                      ? "var(--surface2)"
-                      : "linear-gradient(135deg, var(--gold), var(--gold2))",
-                    color: loading || !scenario.trim() ? "var(--muted)" : "#1a1a2e",
-                    fontWeight: 700, fontSize: 13,
-                    border: "none", cursor: loading || !scenario.trim() ? "not-allowed" : "pointer",
-                    fontFamily: "Inter, sans-serif",
-                    boxShadow: loading || !scenario.trim() ? "none" : "0 2px 12px rgba(232,200,74,0.35)",
-                    transition: "all 0.2s",
-                    whiteSpace: "nowrap",
-                  }}>
-                    {loading ? "In session…" : "Convene Board"}
+                  <button
+                    onClick={handleSimulate}
+                    disabled={loading || !scenario.trim() || totalWeight !== 100}
+                    style={{
+                      padding: "10px 20px", borderRadius: 10,
+                      fontWeight: 700, fontSize: 14,
+                      background: loading || !scenario.trim() || totalWeight !== 100
+                        ? "var(--surface3)" : "var(--navy)",
+                      color: loading || !scenario.trim() || totalWeight !== 100
+                        ? "var(--muted)" : "#ffffff",
+                      border: "none",
+                      cursor: loading || !scenario.trim() || totalWeight !== 100
+                        ? "not-allowed" : "pointer",
+                      fontFamily: "Inter, sans-serif",
+                      boxShadow: loading || !scenario.trim() || totalWeight !== 100
+                        ? "none" : "0 2px 8px rgba(26,39,68,0.25)",
+                      whiteSpace: "nowrap" as const,
+                    }}
+                  >
+                    {loading ? "In Session…" : "Convene Board →"}
                   </button>
                 </div>
               </div>
@@ -651,77 +769,78 @@ export default function Home() {
           )}
         </div>
 
-        {/* ── RIGHT: Live chat ── */}
+        {/* ── RIGHT PANEL: Live discussion ──────────────────────────────── */}
         <div style={{
-          width: 380, flexShrink: 0,
+          width: 420, flexShrink: 0,
           display: "flex", flexDirection: "column",
           borderLeft: "1px solid var(--border)",
-          background: "var(--bg2)",
-          overflow: "hidden",
+          background: "var(--surface)", overflow: "hidden",
         }}>
-          {/* Chat header */}
           <div style={{
-            padding: "16px 18px",
-            borderBottom: "1px solid var(--border)",
+            padding: "16px 20px", borderBottom: "1px solid var(--border)",
             display: "flex", alignItems: "center", gap: 10, flexShrink: 0,
           }}>
             <div style={{
               width: 10, height: 10, borderRadius: "50%",
-              background: loading ? "var(--cond)" : messages.length ? "var(--approve)" : "var(--muted)",
-              boxShadow: loading ? "0 0 10px var(--cond)" : messages.length ? "0 0 8px var(--approve)" : "none",
-              animation: loading ? "blink 1s ease infinite" : "none",
-              flexShrink: 0,
+              background: loading ? "#fbbf24" : messages.length ? "#0d7a4e" : "var(--muted)",
+              boxShadow: loading ? "0 0 8px #fbbf2480" : messages.length ? "0 0 6px #0d7a4e40" : "none",
+              animation: loading ? "blink 1s ease infinite" : "none", flexShrink: 0,
             }} />
-            <span style={{ fontFamily: "Playfair Display, serif", fontSize: 16, color: "var(--gold)", fontWeight: 600 }}>
+            <span style={{ fontSize: 16, fontWeight: 700, color: "var(--text)" }}>
               Live Discussion
             </span>
             {messages.length > 0 && (
               <span style={{
-                marginLeft: "auto", fontSize: 12, color: "var(--text3)",
-                background: "var(--surface)", padding: "2px 10px", borderRadius: 20,
-                border: "1px solid var(--border)",
+                marginLeft: "auto", fontSize: 13, color: "var(--text3)",
+                background: "var(--surface2)", padding: "3px 10px",
+                borderRadius: 20, border: "1px solid var(--border)", fontWeight: 500,
               }}>
                 {messages.filter(m => m.kind !== "system").length} messages
               </span>
             )}
           </div>
 
-          {/* Messages */}
-          <div style={{ flex: 1, overflowY: "auto", padding: "16px 16px 8px" }}>
-
-            {/* Empty state */}
+          <div style={{ flex: 1, overflowY: "auto", padding: "16px 18px 8px" }}>
             {messages.length === 0 && !loading && (
-              <div style={{ textAlign: "center", paddingTop: 32 }}>
-                <div style={{ fontSize: 40, marginBottom: 14, opacity: 0.25 }}>🏛️</div>
-                <div style={{ fontSize: 15, color: "var(--text2)", fontWeight: 500, marginBottom: 6 }}>
-                  The boardroom is quiet.
+              <div style={{ paddingTop: 20 }}>
+                <div style={{ textAlign: "center", marginBottom: 24 }}>
+                  <div style={{ fontSize: 40, marginBottom: 10, opacity: 0.12 }}>🏛️</div>
+                  <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text2)", marginBottom: 6 }}>
+                    The boardroom is quiet.
+                  </div>
+                  <div style={{ fontSize: 13, color: "var(--text3)" }}>
+                    Submit a scenario to convene the executives.
+                  </div>
                 </div>
-                <div style={{ fontSize: 13, color: "var(--text3)", marginBottom: 24 }}>
-                  Submit a scenario to convene the executives.
-                </div>
-
-                {/* Executive roster */}
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, textAlign: "left" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {Object.entries(AGENT_META).map(([key, meta]) => (
                     <div key={key} style={{
                       display: "flex", alignItems: "center", gap: 12,
-                      padding: "10px 14px", borderRadius: 10,
-                      background: "var(--surface)",
-                      border: "1px solid var(--border)",
+                      padding: "12px 14px", borderRadius: 10,
+                      background: "var(--surface2)", border: "1px solid var(--border)",
                     }}>
-                      <span style={{ fontSize: 18 }}>{meta.emoji}</span>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: 8,
+                        background: meta.bg, border: `1.5px solid ${meta.border}`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 17, flexShrink: 0,
+                      }}>{meta.emoji}</div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 13, color: meta.color, fontWeight: 600 }}>{meta.realName}</div>
-                        <div style={{ fontSize: 11, color: "var(--text3)" }}>{meta.title} · {meta.company}</div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: meta.color }}>
+                          {meta.realName}
+                        </div>
+                        <div style={{ fontSize: 12, color: "var(--text3)" }}>
+                          {meta.title} · {meta.company}
+                        </div>
                       </div>
                       <span style={{
-                        fontSize: 11, fontWeight: 700,
+                        fontSize: 12, fontWeight: 700,
                         color: key === "CEO" ? "var(--gold)" : "var(--text3)",
-                        background: key === "CEO" ? "var(--gold-dim)" : "var(--surface2)",
-                        padding: "3px 9px", borderRadius: 20,
-                        border: key === "CEO" ? "1px solid rgba(232,200,74,0.3)" : "1px solid var(--border)",
+                        background: key === "CEO" ? "var(--gold-light)" : "var(--surface3)",
+                        padding: "3px 10px", borderRadius: 20,
+                        border: key === "CEO" ? "1px solid var(--gold-border)" : "1px solid var(--border)",
                       }}>
-                        {WEIGHTS[key]}% vote
+                        {customWeights[key]}% vote
                       </span>
                     </div>
                   ))}
@@ -731,18 +850,20 @@ export default function Home() {
 
             {messages.map((msg, i) => <ChatBubble key={msg.id} msg={msg} idx={i} />)}
 
-            {/* Typing indicator */}
             {loading && (
-              <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 12, color: "var(--text3)", marginBottom: 6 }}>{statusText}</div>
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 13, color: "var(--text3)", marginBottom: 8 }}>
+                  {statusText}
+                </div>
                 <div style={{
-                  background: "var(--surface)", border: "1px solid var(--border)",
-                  borderRadius: "4px 12px 12px 12px", padding: "12px 16px",
+                  background: "var(--surface2)", border: "1px solid var(--border)",
+                  borderRadius: "4px 12px 12px 12px",
+                  padding: "14px 16px",
                   display: "flex", gap: 6, alignItems: "center",
                 }}>
                   {[0,1,2].map(i => (
                     <div key={i} style={{
-                      width: 7, height: 7, borderRadius: "50%", background: "var(--muted)",
+                      width: 8, height: 8, borderRadius: "50%", background: "var(--muted)",
                       animation: `blink 1.2s ease ${i * 0.2}s infinite`,
                     }} />
                   ))}
@@ -752,22 +873,40 @@ export default function Home() {
             <div ref={chatBottomRef} />
           </div>
 
-          {/* Key points footer */}
           {decision && (
-            <div style={{ borderTop: "1px solid var(--border)", padding: "14px 16px", flexShrink: 0 }}>
-              <div style={{ fontSize: 11, color: "var(--text3)", letterSpacing: "0.1em", marginBottom: 10, fontWeight: 600 }}>
-                KEY POINTS
-              </div>
+            <div style={{
+              borderTop: "1px solid var(--border)",
+              padding: "16px 18px", flexShrink: 0,
+              background: "var(--surface2)",
+            }}>
+              <div style={{
+                fontSize: 12, fontWeight: 700, color: "var(--text3)",
+                letterSpacing: "0.08em", marginBottom: 12,
+              }}>KEY POINTS</div>
               {decision.supporting_arguments.slice(0, 2).map((a, i) => (
-                <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                  <span style={{ color: "var(--approve)", flexShrink: 0, fontSize: 13, marginTop: 1 }}>✓</span>
-                  <span style={{ fontSize: 12, color: "var(--text2)", lineHeight: 1.55 }}>{safeStr(a)}</span>
+                <div key={i} style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                  <span style={{
+                    width: 20, height: 20, borderRadius: "50%",
+                    background: "var(--approve-bg)", border: "1px solid var(--approve-bd)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 10, color: "var(--approve)", flexShrink: 0, marginTop: 2, fontWeight: 700,
+                  }}>✓</span>
+                  <span style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.55 }}>
+                    {safeStr(a)}
+                  </span>
                 </div>
               ))}
               {decision.disagreements.slice(0, 1).map((d, i) => (
-                <div key={i} style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                  <span style={{ color: "var(--reject)", flexShrink: 0, fontSize: 13, marginTop: 1 }}>↔</span>
-                  <span style={{ fontSize: 12, color: "var(--text2)", lineHeight: 1.55 }}>{safeStr(d)}</span>
+                <div key={i} style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                  <span style={{
+                    width: 20, height: 20, borderRadius: "50%",
+                    background: "var(--reject-bg)", border: "1px solid var(--reject-bd)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 10, color: "var(--reject)", flexShrink: 0, marginTop: 2, fontWeight: 700,
+                  }}>↔</span>
+                  <span style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.55 }}>
+                    {safeStr(d)}
+                  </span>
                 </div>
               ))}
             </div>

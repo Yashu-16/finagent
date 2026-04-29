@@ -1,28 +1,23 @@
-export const PERSONALITY_TRAITS: Record<string, { trait: string; color: string; icon: string }> = {
-  CEO:  { trait: "First Principles", color: "#818cf8", icon: "⚡" },
-  CFO:  { trait: "Data Driven",      color: "#34d399", icon: "📈" },
-  CMO:  { trait: "Customer Obsessed",color: "#fb923c", icon: "❤️" },
-  Risk: { trait: "Fortress Mindset", color: "#c084fc", icon: "🏰" },
+export const PERSONALITY_TRAITS: Record<string, { trait: string; color: string; bg: string; border: string; icon: string }> = {
+  CEO:  { trait: "First Principles", color: "#3b5bdb", bg: "#eef2ff", border: "#c5d0fa", icon: "⚡" },
+  CFO:  { trait: "Data Driven",      color: "#0d7a4e", bg: "#e8f8f1", border: "#a8dfc5", icon: "📈" },
+  CMO:  { trait: "Customer Obsessed",color: "#c2410c", bg: "#fff4ee", border: "#fbc99a", icon: "❤️" },
+  Risk: { trait: "Fortress Mindset", color: "#6d28d9", bg: "#f5f3ff", border: "#c4b5fd", icon: "🏰" },
 };
 
 export default function PersonalityBadge({ agentKey }: { agentKey: string }) {
-  const trait = PERSONALITY_TRAITS[agentKey];
-  if (!trait) return null;
+  const t = PERSONALITY_TRAITS[agentKey];
+  if (!t) return null;
   return (
     <span style={{
-      fontSize: 11,
-      color: trait.color,
-      background: trait.color + "18",
-      border: `1px solid ${trait.color}35`,
-      padding: "2px 8px",
-      borderRadius: 20,
+      display: "inline-flex", alignItems: "center", gap: 4,
+      fontSize: 12, fontWeight: 500,
+      color: t.color, background: t.bg,
+      border: `1px solid ${t.border}`,
+      padding: "3px 9px", borderRadius: 20,
       whiteSpace: "nowrap" as const,
-      fontWeight: 500,
-      display: "inline-flex",
-      alignItems: "center",
-      gap: 4,
     }}>
-      {trait.icon} {trait.trait}
+      {t.icon} {t.trait}
     </span>
   );
 }

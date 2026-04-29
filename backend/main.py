@@ -11,13 +11,8 @@ from fastapi.responses import StreamingResponse
 from dotenv import load_dotenv
 
 from models.schemas import (
-    ScenarioRequest,
-    SimulationResponse,
-    HealthResponse,
-    AgentPosition,
-    DebateRound,
-    DebateExchange,
-    FinalDecision,
+    ScenarioRequest, SimulationResponse, HealthResponse,
+    AgentPosition, DebateRound, DebateExchange, FinalDecision,
 )
 from agents.ceo_agent import CEOAgent
 from agents.cfo_agent import CFOAgent
@@ -46,7 +41,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="FinAgent API", version="0.5.0", lifespan=lifespan)
+app = FastAPI(title="FinAgent API", version="0.7.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -59,20 +54,18 @@ app.add_middleware(
 
 @app.get("/health", response_model=HealthResponse, tags=["System"])
 async def health_check():
-    return HealthResponse(status="ok", version="0.5.0", api_key_loaded=bool(os.getenv("OPENAI_API_KEY")))
+    return HealthResponse(
+        status="ok", version="0.7.0",
+        api_key_loaded=bool(os.getenv("OPENAI_API_KEY"))
+    )
 
 
 def emit(event: str, data: dict) -> str:
-    """Format a server-sent event."""
     return f"event: {event}\ndata: {json.dumps(data)}\n\n"
 
 
 @app.post("/simulate/stream", tags=["Simulation"])
 async def simulate_stream(request: ScenarioRequest):
-    """
-    Stream simulation events as SSE so the frontend can show
-    each agent message the moment it is ready.
-    """
     if not os.getenv("OPENAI_API_KEY"):
         raise HTTPException(status_code=503, detail="OPENAI_API_KEY not configured.")
 
@@ -81,21 +74,32 @@ async def simulate_stream(request: ScenarioRequest):
     async def generate():
         yield emit("session", {"session_id": session_id})
 
-        # Phase 1 — initial positions
+        # ── Phase 1: Initial positions ────────────────────────────────
         initial_positions = []
+
         for agent in AGENTS:
             yield emit("status", {"text": f"{agent.role_name} is forming a position…", "agent": agent.role_name})
             try:
                 pos = agent.get_initial_position(request.scenario)
-                initial_positions.append(pos)
-                yield emit("position", pos)
+                clean_pos = {
+                    "agent":       pos.get("agent",       agent.role_name),
+                    "role":        pos.get("role",        agent.role_title),
+                    "stance":      pos.get("stance",      "conditional"),
+                    "reasoning":   pos.get("reasoning",   ""),
+                    "key_concern": pos.get("key_concern", ""),
+                }
+                initial_positions.append(clean_pos)
+                yield emit("position", clean_pos)
             except Exception as e:
                 logger.error(f"Error from {agent.role_name}: {e}")
                 yield emit("error", {"agent": agent.role_name, "message": str(e)})
 
-        # Phase 2 — debate
+        # ── Phase 2: Debate rounds ────────────────────────────────────
         raw_rounds = []
-        argument_memory = [{"agent": p["agent"], "round": 0, "argument": p["reasoning"]} for p in initial_positions]
+        argument_memory = [
+            {"agent": p["agent"], "round": 0, "argument": p["reasoning"]}
+            for p in initial_positions
+        ]
         current_positions = [dict(p) for p in initial_positions]
 
         for round_num in range(1, request.config.debate_rounds + 1):
@@ -103,7 +107,11 @@ async def simulate_stream(request: ScenarioRequest):
             round_exchanges = []
 
             for agent in AGENTS:
-                yield emit("status", {"text": f"Round {round_num} — {agent.role_name} is responding…", "agent": agent.role_name})
+                yield emit("status", {
+                    "text": f"Round {round_num} — {agent.role_name} is responding…",
+                    "agent": agent.role_name,
+                })
+                valid_agents = [a.role_name for a in AGENTS if a.role_name != agent.role_name]
                 try:
                     response = agent.debate_response(
                         scenario=request.scenario,
@@ -111,31 +119,50 @@ async def simulate_stream(request: ScenarioRequest):
                         prior_arguments=argument_memory,
                         round_number=round_num,
                     )
-                    valid_agents = [a.role_name for a in AGENTS if a.role_name != agent.role_name]
+
                     target = response.get("target_agent", valid_agents[0])
                     if target not in valid_agents:
                         target = valid_agents[0]
 
                     exchange = {
-                        "agent": agent.role_name,
+                        "agent":        agent.role_name,
                         "target_agent": target,
-                        "argument": response.get("argument", ""),
-                        "stance": response.get("stance", "conditional"),
-                        "round": round_num,
+                        "argument":     response.get("argument", ""),
+                        "stance":       response.get("stance", "conditional"),
+                        "round":        round_num,
                     }
                     round_exchanges.append(exchange)
-                    argument_memory.append({"agent": agent.role_name, "round": round_num, "argument": exchange["argument"]})
+
                     for p in current_positions:
                         if p["agent"] == agent.role_name:
                             p["stance"] = exchange["stance"]
+                            break
+
+                    argument_memory.append({
+                        "agent":    agent.role_name,
+                        "round":    round_num,
+                        "argument": exchange["argument"],
+                    })
+
                     yield emit("exchange", exchange)
+
                 except Exception as e:
                     logger.error(f"Debate error {agent.role_name} r{round_num}: {e}")
+                    fallback = {
+                        "agent":        agent.role_name,
+                        "target_agent": valid_agents[0],
+                        "argument":     f"[Agent error in round {round_num}]",
+                        "stance":       "conditional",
+                        "round":        round_num,
+                    }
+                    round_exchanges.append(fallback)
+                    yield emit("exchange", fallback)
 
             raw_rounds.append({"round_number": round_num, "exchanges": round_exchanges})
 
-        # Phase 3 — decision
+        # ── Phase 3: Decision ─────────────────────────────────────────
         yield emit("status", {"text": "Board is reaching a decision…", "agent": None})
+
         decision_engine = DecisionEngine()
         decision_data = decision_engine.aggregate(
             scenario=request.scenario,
@@ -143,21 +170,24 @@ async def simulate_stream(request: ScenarioRequest):
             final_positions=current_positions,
             debate_rounds=raw_rounds,
             mode=request.config.decision_mode,
+            agent_weights=request.config.agent_weights,
         )
         yield emit("decision", decision_data)
 
-        # Save session
         save_session(session_id, {
-            "session_id": session_id,
-            "scenario": request.scenario,
+            "session_id":        session_id,
+            "scenario":          request.scenario,
             "initial_positions": initial_positions,
-            "debate_rounds": raw_rounds,
-            "final_decision": decision_data,
+            "debate_rounds":     raw_rounds,
+            "final_decision":    decision_data,
         })
         yield emit("done", {"session_id": session_id})
 
-    return StreamingResponse(generate(), media_type="text/event-stream",
-                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+    return StreamingResponse(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @app.post("/simulate", response_model=SimulationResponse, tags=["Simulation"])
@@ -170,29 +200,49 @@ async def simulate(request: ScenarioRequest):
     for agent in AGENTS:
         try:
             pos = agent.get_initial_position(request.scenario)
-            initial_positions.append(AgentPosition(**{k: pos[k] for k in ["agent","role","stance","reasoning","key_concern"]}))
+            initial_positions.append(AgentPosition(
+                agent=pos.get("agent", agent.role_name),
+                role=pos.get("role", agent.role_title),
+                stance=pos.get("stance", "conditional"),
+                reasoning=pos.get("reasoning", ""),
+                key_concern=pos.get("key_concern", ""),
+            ))
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Agent {agent.role_name} failed: {e}")
 
     debate_engine = DebateEngine(agents=AGENTS, rounds=request.config.debate_rounds)
     raw_positions = [p.model_dump() for p in initial_positions]
-    raw_rounds, final_positions = debate_engine.run(scenario=request.scenario, initial_positions=raw_positions)
+    raw_rounds, final_positions = debate_engine.run(
+        scenario=request.scenario,
+        initial_positions=raw_positions,
+    )
 
     debate_rounds = [
-        DebateRound(round_number=r["round_number"], exchanges=[DebateExchange(**ex) for ex in r["exchanges"]])
+        DebateRound(
+            round_number=r["round_number"],
+            exchanges=[DebateExchange(**ex) for ex in r["exchanges"]],
+        )
         for r in raw_rounds
     ]
 
     decision_engine = DecisionEngine()
     decision_data = decision_engine.aggregate(
-        scenario=request.scenario, initial_positions=raw_positions,
-        final_positions=final_positions, debate_rounds=raw_rounds,
+        scenario=request.scenario,
+        initial_positions=raw_positions,
+        final_positions=final_positions,
+        debate_rounds=raw_rounds,
         mode=request.config.decision_mode,
+        agent_weights=request.config.agent_weights,
     )
+
     final_decision = FinalDecision(**decision_data)
-    result = SimulationResponse(session_id=session_id, scenario=request.scenario,
-                                initial_positions=initial_positions, debate_rounds=debate_rounds,
-                                final_decision=final_decision)
+    result = SimulationResponse(
+        session_id=session_id,
+        scenario=request.scenario,
+        initial_positions=initial_positions,
+        debate_rounds=debate_rounds,
+        final_decision=final_decision,
+    )
     save_session(session_id, result.model_dump())
     return result
 

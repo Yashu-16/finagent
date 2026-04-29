@@ -5,6 +5,7 @@ from typing import Optional, Literal
 class SimulationConfig(BaseModel):
     debate_rounds: int = Field(default=2, ge=1, le=5)
     decision_mode: Literal["weighted", "majority"] = "weighted"
+    agent_weights: Optional[dict] = None
 
 
 class ScenarioRequest(BaseModel):
