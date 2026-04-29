@@ -870,35 +870,50 @@ export default function Home() {
           {decision && (
             <div style={{
               borderTop: "1px solid var(--border)",
-              padding: "16px 18px", flexShrink: 0,
+              padding: "10px 16px",
+              flexShrink: 0,
               background: "var(--surface2)",
+              maxHeight: 120,
+              overflowY: "auto",
             }}>
               <div style={{
-                fontSize: 12, fontWeight: 700, color: "var(--text3)",
-                letterSpacing: "0.08em", marginBottom: 12,
+                fontSize: 11, fontWeight: 700, color: "var(--text3)",
+                letterSpacing: "0.08em", marginBottom: 8,
               }}>KEY POINTS</div>
-              {decision.supporting_arguments.slice(0, 2).map((a, i) => (
-                <div key={i} style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+
+              {/* Supporting — just first one, truncated */}
+              {decision.supporting_arguments.slice(0, 1).map((a, i) => (
+                <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6 }}>
                   <span style={{
-                    width: 20, height: 20, borderRadius: "50%",
+                    width: 18, height: 18, borderRadius: "50%",
                     background: "var(--approve-bg)", border: "1px solid var(--approve-bd)",
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 10, color: "var(--approve)", flexShrink: 0, marginTop: 2, fontWeight: 700,
+                    fontSize: 9, color: "var(--approve)", flexShrink: 0, marginTop: 1, fontWeight: 700,
                   }}>✓</span>
-                  <span style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.55 }}>
+                  <span style={{
+                    fontSize: 12, color: "var(--text2)", lineHeight: 1.5,
+                    display: "-webkit-box", WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical" as const, overflow: "hidden",
+                  }}>
                     {safeStr(a)}
                   </span>
                 </div>
               ))}
+
+              {/* Disagreement — first one, truncated */}
               {decision.disagreements.slice(0, 1).map((d, i) => (
-                <div key={i} style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+                <div key={i} style={{ display: "flex", gap: 8, marginBottom: 4 }}>
                   <span style={{
-                    width: 20, height: 20, borderRadius: "50%",
+                    width: 18, height: 18, borderRadius: "50%",
                     background: "var(--reject-bg)", border: "1px solid var(--reject-bd)",
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 10, color: "var(--reject)", flexShrink: 0, marginTop: 2, fontWeight: 700,
+                    fontSize: 9, color: "var(--reject)", flexShrink: 0, marginTop: 1, fontWeight: 700,
                   }}>↔</span>
-                  <span style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.55 }}>
+                  <span style={{
+                    fontSize: 12, color: "var(--text2)", lineHeight: 1.5,
+                    display: "-webkit-box", WebkitLineClamp: 2,
+                    WebkitBoxOrient: "vertical" as const, overflow: "hidden",
+                  }}>
                     {safeStr(d)}
                   </span>
                 </div>
