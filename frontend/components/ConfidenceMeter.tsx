@@ -11,21 +11,18 @@ interface Props {
   agentStates: Record<string, AgentState>;
   finalConfidence?: number;
   finalVerdict?: string;
+  customWeights?: Record<string, number>;
 }
-
-const WEIGHTS: Record<string, number> = {
-  CEO: 0.50, CFO: 0.17, CMO: 0.17, Risk: 0.16,
-};
-
-const STANCE_SCORE: Record<string, number> = {
-  approve: 1.0, conditional: 0.5, reject: 0.0, idle: 0.5,
-};
 
 const AGENT_META: Record<string, { color: string; emoji: string; realName: string }> = {
   CEO:  { color: "#3b5bdb", emoji: "🚀", realName: "Elon Musk" },
   CFO:  { color: "#0d7a4e", emoji: "💳", realName: "Sachin Mehra" },
   CMO:  { color: "#c2410c", emoji: "📊", realName: "Julia White" },
   Risk: { color: "#6d28d9", emoji: "🏦", realName: "Ashley Bacon" },
+};
+
+const STANCE_SCORE: Record<string, number> = {
+  approve: 1.0, conditional: 0.5, reject: 0.0, idle: 0.5,
 };
 
 const STANCE_STYLE: Record<string, { color: string; bg: string; border: string; label: string }> = {
@@ -35,15 +32,24 @@ const STANCE_STYLE: Record<string, { color: string; bg: string; border: string; 
   idle:        { color: "#8a9bb8", bg: "#f4f6fa", border: "#e2e6f0", label: "Pending" },
 };
 
-export default function ConfidenceMeter({ agentStates, finalConfidence, finalVerdict }: Props) {
+const DEFAULT_WEIGHTS: Record<string, number> = {
+  CEO: 0.50, CFO: 0.17, CMO: 0.17, Risk: 0.16,
+};
+
+export default function ConfidenceMeter({ agentStates, finalConfidence, finalVerdict, customWeights }: Props) {
   const [displayScore, setDisplayScore] = useState(50);
+
+  // Convert customWeights from percentages (50,17,17,16) to fractions (0.50,0.17,0.17,0.16)
+  const weights: Record<string, number> = customWeights
+    ? Object.fromEntries(Object.entries(customWeights).map(([k, v]) => [k, v / 100]))
+    : DEFAULT_WEIGHTS;
 
   const liveScore = (() => {
     let totalWeight = 0;
     let weightedSum = 0;
     for (const [agent, state] of Object.entries(agentStates)) {
       if (!state.hasSpoken) continue;
-      const w = WEIGHTS[agent] || 0.17;
+      const w = weights[agent] ?? 0.17;
       const s = STANCE_SCORE[state.stance] ?? 0.5;
       weightedSum += w * s;
       totalWeight += w;
@@ -109,13 +115,13 @@ export default function ConfidenceMeter({ agentStates, finalConfidence, finalVer
       background: "#ffffff",
       border: "1px solid #e2e6f0",
       borderRadius: 14,
-      padding: "16px 20px",
+      padding: "14px 18px",
       boxShadow: "0 1px 4px rgba(30,40,80,0.08)",
     }}>
       {/* Header */}
       <div style={{
-        fontSize: 12, fontWeight: 700, color: "#8a9bb8",
-        letterSpacing: "0.08em", marginBottom: 14,
+        fontSize: 11, fontWeight: 700, color: "#8a9bb8",
+        letterSpacing: "0.08em", marginBottom: 12,
         textTransform: "uppercase" as const,
       }}>
         Live Board Confidence
@@ -127,37 +133,19 @@ export default function ConfidenceMeter({ agentStates, finalConfidence, finalVer
         <div style={{ flexShrink: 0 }}>
           <svg width={136} height={92} viewBox="0 0 136 92">
             {/* Background track */}
-            <path
-              d={arcPath(startAngle, endAngle, R)}
-              fill="none" stroke="#f0f3f9" strokeWidth={10}
-              strokeLinecap="round"
-            />
+            <path d={arcPath(startAngle, endAngle, R)} fill="none" stroke="#f0f3f9" strokeWidth={10} strokeLinecap="round" />
             {/* Zone: reject */}
-            <path
-              d={arcPath(startAngle, startAngle + totalDeg * 0.45, R)}
-              fill="none" stroke="#fde8e6" strokeWidth={10}
-              strokeLinecap="round"
-            />
+            <path d={arcPath(startAngle, startAngle + totalDeg * 0.45, R)} fill="none" stroke="#fde8e6" strokeWidth={10} strokeLinecap="round" />
             {/* Zone: conditional */}
-            <path
-              d={arcPath(startAngle + totalDeg * 0.45, startAngle + totalDeg * 0.70, R)}
-              fill="none" stroke="#fef3d0" strokeWidth={10}
-              strokeLinecap="round"
-            />
+            <path d={arcPath(startAngle + totalDeg * 0.45, startAngle + totalDeg * 0.70, R)} fill="none" stroke="#fef3d0" strokeWidth={10} strokeLinecap="round" />
             {/* Zone: approve */}
-            <path
-              d={arcPath(startAngle + totalDeg * 0.70, endAngle, R)}
-              fill="none" stroke="#d4f4e7" strokeWidth={10}
-              strokeLinecap="round"
-            />
+            <path d={arcPath(startAngle + totalDeg * 0.70, endAngle, R)} fill="none" stroke="#d4f4e7" strokeWidth={10} strokeLinecap="round" />
 
             {/* Active fill */}
             {anySpoken && (
               <path
                 d={arcPath(startAngle, scoreDeg, R)}
-                fill="none"
-                stroke={verdictStyle.trackColor}
-                strokeWidth={10}
+                fill="none" stroke={verdictStyle.trackColor} strokeWidth={10}
                 strokeLinecap="round"
                 style={{ transition: "all 0.4s ease" }}
               />
@@ -167,36 +155,26 @@ export default function ConfidenceMeter({ agentStates, finalConfidence, finalVer
             {anySpoken && (
               <circle
                 cx={needle.x} cy={needle.y} r={5}
-                fill={verdictStyle.color}
-                stroke="#ffffff" strokeWidth={2}
+                fill={verdictStyle.color} stroke="#ffffff" strokeWidth={2}
                 style={{ transition: "all 0.4s ease" }}
               />
             )}
 
-            {/* Center text */}
-            <text
-              x={cx} y={cy + 6}
-              textAnchor="middle"
-              style={{
-                fontFamily: "Inter, sans-serif",
-                fontSize: anySpoken ? 22 : 18,
-                fontWeight: 800,
-                fill: anySpoken ? verdictStyle.color : "#c0c8d8",
-              }}
-            >
+            {/* Center score */}
+            <text x={cx} y={cy + 6} textAnchor="middle" style={{
+              fontFamily: "Inter, sans-serif",
+              fontSize: anySpoken ? 22 : 18,
+              fontWeight: 800,
+              fill: anySpoken ? verdictStyle.color : "#c0c8d8",
+            }}>
               {anySpoken ? `${displayScore}%` : "--"}
             </text>
-            <text
-              x={cx} y={cy + 20}
-              textAnchor="middle"
-              style={{
-                fontFamily: "Inter, sans-serif",
-                fontSize: 9,
-                fontWeight: 600,
-                fill: anySpoken ? verdictStyle.color : "#c0c8d8",
-                letterSpacing: "0.08em",
-              }}
-            >
+            <text x={cx} y={cy + 20} textAnchor="middle" style={{
+              fontFamily: "Inter, sans-serif",
+              fontSize: 9, fontWeight: 600,
+              fill: anySpoken ? verdictStyle.color : "#c0c8d8",
+              letterSpacing: "0.08em",
+            }}>
               {anySpoken ? verdict.toUpperCase() : "PENDING"}
             </text>
           </svg>
@@ -209,8 +187,9 @@ export default function ConfidenceMeter({ agentStates, finalConfidence, finalVer
             const spoken = state?.hasSpoken;
             const stance = state?.stance || "idle";
             const sc = STANCE_SCORE[stance] ?? 0.5;
-            const w = WEIGHTS[key];
+            const w = weights[key] ?? 0.17;
             const ss = STANCE_STYLE[stance];
+            const wPct = Math.round(w * 100);
 
             return (
               <div key={key}>
@@ -221,17 +200,15 @@ export default function ConfidenceMeter({ agentStates, finalConfidence, finalVer
                 }}>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <span style={{ fontSize: 13 }}>{meta.emoji}</span>
-                    <span style={{
-                      fontSize: 13, fontWeight: 600,
-                      color: spoken ? meta.color : "#c0c8d8",
-                    }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: spoken ? meta.color : "#c0c8d8" }}>
                       {meta.realName.split(" ")[0]}
                     </span>
                     <span style={{
-                      fontSize: 11, color: "#8a9bb8",
-                      fontFamily: "monospace",
+                      fontSize: 11, color: "#8a9bb8", fontFamily: "monospace",
+                      background: "#f4f6fa", border: "1px solid #e2e6f0",
+                      padding: "1px 5px", borderRadius: 4,
                     }}>
-                      {Math.round(w * 100)}%
+                      {wPct}%
                     </span>
                   </div>
                   {spoken ? (
@@ -252,8 +229,7 @@ export default function ConfidenceMeter({ agentStates, finalConfidence, finalVer
                 {/* Progress bar */}
                 <div style={{
                   height: 6, borderRadius: 99,
-                  background: "#f0f3f9",
-                  overflow: "hidden",
+                  background: "#f0f3f9", overflow: "hidden",
                   border: "1px solid #e2e6f0",
                 }}>
                   <div style={{

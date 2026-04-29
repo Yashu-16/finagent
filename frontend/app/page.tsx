@@ -618,6 +618,7 @@ export default function Home() {
               agentStates={agentStates}
               finalConfidence={decision?.confidence}
               finalVerdict={decision?.verdict}
+              customWeights={customWeights}
             />
           </div>
 
