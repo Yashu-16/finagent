@@ -44,26 +44,21 @@ export interface SimulationResponse {
 }
 
 export type StreamEvent =
-  | { type: "session";     session_id: string }
-  | { type: "status";      text: string; agent: string | null }
-  | { type: "position";    agent: string; role: string; stance: string; reasoning: string; key_concern: string }
-  | { type: "round_start"; round: number }
-  | { type: "exchange";    agent: string; target_agent: string; argument: string; stance: string; round: number }
-  | { type: "decision";    verdict: string; confidence: number; supporting_arguments: string[]; disagreements: string[]; rationale: string }
-  | { type: "done";        session_id: string }
-  | { type: "error";       agent: string; message: string };
+  | { type: "session";             session_id: string }
+  | { type: "status";              text: string; agent: string | null }
+  | { type: "news";                headlines: string }
+  | { type: "position";            agent: string; role: string; stance: string; reasoning: string; key_concern: string }
+  | { type: "round_start";         round: number }
+  | { type: "comment_round_start"; comment: string }
+  | { type: "exchange";            agent: string; target_agent: string; argument: string; stance: string; round: number }
+  | { type: "decision";            verdict: string; confidence: number; supporting_arguments: string[]; disagreements: string[]; rationale: string }
+  | { type: "done";                session_id: string }
+  | { type: "error";               agent: string; message: string };
 
-export async function streamSimulation(
-  scenario: string,
-  config: SimulationConfig,
+async function consumeSSE(
+  response: Response,
   onEvent: (event: StreamEvent) => void,
 ): Promise<void> {
-  const response = await fetch(`${BASE_URL}/simulate/stream`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ scenario, config }),
-  });
-
   if (!response.ok) throw new Error(`Server error: ${response.status}`);
   if (!response.body) throw new Error("No response body");
 
@@ -93,4 +88,37 @@ export async function streamSimulation(
       }
     }
   }
+}
+
+export async function streamSimulation(
+  scenario: string,
+  config: SimulationConfig,
+  onEvent: (event: StreamEvent) => void,
+): Promise<void> {
+  const response = await fetch(`${BASE_URL}/simulate/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ scenario, config }),
+  });
+  await consumeSSE(response, onEvent);
+}
+
+export async function streamHumanComment(
+  scenario: string,
+  comment: string,
+  initialPositions: AgentPosition[],
+  debateRounds: DebateRound[],
+  onEvent: (event: StreamEvent) => void,
+): Promise<void> {
+  const response = await fetch(`${BASE_URL}/comment/stream`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      scenario,
+      comment,
+      initial_positions: initialPositions,
+      debate_rounds: debateRounds,
+    }),
+  });
+  await consumeSSE(response, onEvent);
 }

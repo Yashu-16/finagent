@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import dynamic from "next/dynamic";
-import { streamSimulation, StreamEvent, FinalDecision } from "@/lib/api";
+import { streamSimulation, streamHumanComment, StreamEvent, FinalDecision } from "@/lib/api";
 import ConfidenceMeter from "@/components/ConfidenceMeter";
 import PersonalityBadge from "@/components/PersonalityBadge";
 import ReplayTimeline from "@/components/ReplayTimeline";
@@ -72,9 +72,7 @@ function StanceBadge({ stance }: { stance: string }) {
       border: `1px solid ${s.border}`,
       padding: "2px 8px", borderRadius: 20,
       letterSpacing: "0.02em", whiteSpace: "nowrap" as const,
-    }}>
-      {s.label}
-    </span>
+    }}>{s.label}</span>
   );
 }
 
@@ -111,20 +109,14 @@ function StanceToast({ changes }: { changes: { agent: string; from: string; to: 
 function AgentCard({ agentKey, state }: { agentKey: string; state: AgentState }) {
   const meta = AGENT_META[agentKey];
   const isActive = state.active;
-
-  // Short titles that fit in card
-  const shortTitle: Record<string, string> = {
-    CEO: "CEO", CFO: "CFO", CMO: "CMO", Risk: "CRO",
-  };
-
+  const shortTitle: Record<string, string> = { CEO: "CEO", CFO: "CFO", CMO: "CMO", Risk: "CRO" };
   return (
     <div style={{
       background: isActive ? meta.bg : "var(--surface2)",
       border: `1.5px solid ${isActive ? meta.border : "var(--border)"}`,
       borderRadius: 10, padding: "8px 10px",
       boxShadow: isActive ? `0 0 0 3px ${meta.bg}` : "none",
-      transition: "all 0.25s ease",
-      minWidth: 0,
+      transition: "all 0.25s ease", minWidth: 0,
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 7, marginBottom: 5 }}>
         <div style={{
@@ -137,15 +129,11 @@ function AgentCard({ agentKey, state }: { agentKey: string; state: AgentState })
           <div style={{
             fontSize: 12, fontWeight: 700, color: meta.color, lineHeight: 1.2,
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const,
-          }}>
-            {meta.realName}
-          </div>
+          }}>{meta.realName}</div>
           <div style={{
             fontSize: 10, color: "var(--text3)",
             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const,
-          }}>
-            {meta.company} · {shortTitle[agentKey]}
-          </div>
+          }}>{meta.company} · {shortTitle[agentKey]}</div>
         </div>
         {state.hasSpoken && (
           <div style={{ flexShrink: 0 }}>
@@ -159,18 +147,61 @@ function AgentCard({ agentKey, state }: { agentKey: string; state: AgentState })
 }
 
 function ChatBubble({ msg, idx }: { msg: ChatMessage; idx: number }) {
+  // System divider
   if (msg.kind === "system") {
+    // News message — special styling
+    if (msg.agent === "news") {
+      return (
+        <div className="fade-in" style={{ margin: "12px 0", padding: "10px 14px", borderRadius: 10, background: "#fffbeb", border: "1px solid #f0d080" }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: "#b45309", marginBottom: 6, letterSpacing: "0.06em" }}>
+            📰 MARKET CONTEXT LOADED
+          </div>
+          <div style={{ fontSize: 12, color: "#78350f", lineHeight: 1.6, whiteSpace: "pre-line" as const }}>
+            {msg.text}
+          </div>
+        </div>
+      );
+    }
     return (
       <div style={{ display: "flex", alignItems: "center", gap: 10, margin: "20px 0 16px" }}>
         <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
-        <span style={{
-          fontSize: 12, fontWeight: 600, color: "var(--gold)",
-          letterSpacing: "0.08em", whiteSpace: "nowrap" as const,
-        }}>{msg.text}</span>
+        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--gold)", letterSpacing: "0.08em", whiteSpace: "nowrap" as const }}>
+          {msg.text}
+        </span>
         <div style={{ flex: 1, height: 1, background: "var(--border)" }} />
       </div>
     );
   }
+
+  // Human message — right aligned
+  if (msg.agent === "human") {
+    return (
+      <div className="slide-l" style={{ animationDelay: `${Math.min(idx * 0.02, 0.2)}s`, marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, justifyContent: "flex-end" }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--navy)" }}>You</span>
+          <div style={{
+            width: 30, height: 30, borderRadius: 6,
+            background: "var(--navy)", border: "1.5px solid var(--navy2)",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 14, flexShrink: 0,
+          }}>👤</div>
+        </div>
+        <div style={{
+          background: "var(--navy)",
+          borderRadius: "10px 0 10px 10px",
+          padding: "12px 14px",
+          fontSize: 14, lineHeight: 1.65,
+          color: "#ffffff",
+          boxShadow: "0 1px 3px var(--shadow)",
+          marginLeft: "20%",
+        }}>
+          {msg.text}
+        </div>
+      </div>
+    );
+  }
+
+  // Agent message
   const meta = AGENT_META[msg.agent];
   return (
     <div className="slide-l" style={{ animationDelay: `${Math.min(idx * 0.02, 0.2)}s`, marginBottom: 16 }}>
@@ -191,8 +222,12 @@ function ChatBubble({ msg, idx }: { msg: ChatMessage; idx: number }) {
             {msg.target && (
               <>
                 <span style={{ fontSize: 12, color: "var(--muted)" }}>→</span>
-                <span style={{ fontSize: 13, color: AGENT_META[msg.target]?.color, fontWeight: 600 }}>
-                  {AGENT_META[msg.target]?.realName || msg.target}
+                <span style={{
+                  fontSize: 13,
+                  color: msg.target === "human" ? "var(--navy)" : AGENT_META[msg.target]?.color,
+                  fontWeight: 600,
+                }}>
+                  {msg.target === "human" ? "You" : (AGENT_META[msg.target]?.realName || msg.target)}
                 </span>
               </>
             )}
@@ -227,6 +262,7 @@ export default function Home() {
   const [statusText, setStatusText] = useState("Ready to convene");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [humanMessage, setHumanMessage] = useState("");
   const [agentStates, setAgentStates] = useState<Record<string, AgentState>>({
     CEO:  { stance: "idle", active: false, hasSpoken: false, prevStance: "idle" },
     CFO:  { stance: "idle", active: false, hasSpoken: false, prevStance: "idle" },
@@ -252,6 +288,120 @@ export default function Home() {
 
   function resetWeights() {
     setCustomWeights({ ...DEFAULT_WEIGHTS });
+  }
+
+  async function sendHumanMessage() {
+    if (!humanMessage.trim() || loading) return;
+    const comment = humanMessage.trim();
+
+    const initialPositions = messages
+      .filter(m => m.kind === "position" && m.agent !== "human" && m.agent !== "news")
+      .map(m => ({
+        agent: m.agent,
+        role: AGENT_META[m.agent]?.title || m.agent,
+        stance: m.stance as "approve" | "reject" | "conditional",
+        reasoning: m.text,
+        key_concern: "",
+      }));
+
+    if (!scenario.trim() || initialPositions.length === 0) {
+      setError("Convene the board on a scenario first — then the executives can respond to your input.");
+      const id = `human-${msgCounter.current++}`;
+      setMessages(prev => [...prev, {
+        id, agent: "human", text: comment,
+        stance: "idle", kind: "position",
+      }]);
+      setHumanMessage("");
+      return;
+    }
+
+    const roundsMap: Record<number, { agent: string; target_agent: string; argument: string; stance: "approve" | "reject" | "conditional" }[]> = {};
+    messages.filter(m => m.kind === "debate" && m.round && m.round > 0).forEach(m => {
+      const r = m.round as number;
+      if (!roundsMap[r]) roundsMap[r] = [];
+      roundsMap[r].push({
+        agent: m.agent,
+        target_agent: m.target || "",
+        argument: m.text,
+        stance: m.stance as "approve" | "reject" | "conditional",
+      });
+    });
+    const debateRounds = Object.entries(roundsMap)
+      .map(([r, exchanges]) => ({ round_number: Number(r), exchanges }))
+      .sort((a, b) => a.round_number - b.round_number);
+
+    const id = `human-${msgCounter.current++}`;
+    setMessages(prev => [...prev, {
+      id, agent: "human", text: comment,
+      stance: "idle", kind: "position",
+    }]);
+    setHumanMessage("");
+    setError(null);
+    setLoading(true);
+    setStatusText("Asking the board to respond to your comment…");
+
+    try {
+      await streamHumanComment(
+        scenario,
+        comment,
+        initialPositions,
+        debateRounds,
+        (event: StreamEvent) => {
+          switch (event.type) {
+            case "status":
+              setStatusText(event.text);
+              if (event.agent) setAgentStates(prev => ({
+                ...prev,
+                [event.agent!]: { ...prev[event.agent!], active: true },
+              }));
+              break;
+
+            case "comment_round_start":
+              setMessages(prev => [...prev, {
+                id: `div-comment-${msgCounter.current++}`,
+                agent: "system",
+                text: "── Board Responds to You ──",
+                stance: "idle", kind: "system",
+              }]);
+              setAgentStates(prev => {
+                const n = { ...prev };
+                for (const k of Object.keys(n)) n[k] = { ...n[k], active: false };
+                return n;
+              });
+              break;
+
+            case "exchange": {
+              const exId = `ex-h-${msgCounter.current++}`;
+              updateAgentStance(event.agent, event.stance as AgentState["stance"], true);
+              setMessages(prev => [...prev, {
+                id: exId, agent: event.agent, text: event.argument,
+                stance: event.stance, kind: "debate",
+                round: event.round && event.round > 0 ? event.round : undefined,
+                target: event.target_agent,
+              }]);
+              break;
+            }
+
+            case "done":
+              setLoading(false);
+              setStatusText("Board responded to your comment.");
+              setAgentStates(prev => {
+                const n = { ...prev };
+                for (const k of Object.keys(n)) n[k] = { ...n[k], active: false };
+                return n;
+              });
+              break;
+
+            case "error":
+              setError(`${event.agent}: ${event.message}`);
+              break;
+          }
+        }
+      );
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Failed to fetch board response.");
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -301,7 +451,10 @@ export default function Home() {
         { debate_rounds: rounds, decision_mode: mode, agent_weights: customWeights },
         (event: StreamEvent) => {
           switch (event.type) {
-            case "session": setSessionId(event.session_id); break;
+            case "session":
+              setSessionId(event.session_id);
+              break;
+
             case "status":
               setStatusText(event.text);
               if (event.agent) setAgentStates(prev => ({
@@ -309,6 +462,17 @@ export default function Home() {
                 [event.agent!]: { ...prev[event.agent!], active: true },
               }));
               break;
+
+            case "news":
+              setMessages(prev => [...prev, {
+                id: `news-${msgCounter.current++}`,
+                agent: "news",
+                text: event.headlines,
+                stance: "idle",
+                kind: "system",
+              }]);
+              break;
+
             case "round_start":
               setMessages(prev => [...prev, {
                 id: `div-r${event.round}`, agent: "system",
@@ -321,6 +485,7 @@ export default function Home() {
                 return n;
               });
               break;
+
             case "position": {
               const id = `pos-${msgCounter.current++}`;
               updateAgentStance(event.agent, event.stance as AgentState["stance"], true);
@@ -330,6 +495,7 @@ export default function Home() {
               }]);
               break;
             }
+
             case "exchange": {
               const id = `ex-${msgCounter.current++}`;
               updateAgentStance(event.agent, event.stance as AgentState["stance"], true);
@@ -340,6 +506,7 @@ export default function Home() {
               }]);
               break;
             }
+
             case "decision":
               setDecision(event as unknown as FinalDecision);
               setStatusText("Board has reached a decision.");
@@ -349,10 +516,12 @@ export default function Home() {
                 return n;
               });
               break;
+
             case "done":
               setLoading(false);
               setStatusText("Session complete.");
               break;
+
             case "error":
               setError(`${event.agent}: ${event.message}`);
               break;
@@ -383,7 +552,7 @@ export default function Home() {
         <ExportPDF
           scenario={scenario}
           sessionId={sessionId || "unknown"}
-          initialPositions={messages.filter(m => m.kind === "position").map(m => ({
+          initialPositions={messages.filter(m => m.kind === "position" && m.agent !== "human").map(m => ({
             agent: m.agent, role: AGENT_META[m.agent]?.title || m.agent,
             stance: m.stance, reasoning: m.text, key_concern: "",
           }))}
@@ -521,54 +690,40 @@ export default function Home() {
         {/* ── LEFT PANEL ───────────────────────────────────────────────── */}
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "auto", minWidth: 0 }}>
 
-          {/* ── Agent cards + vote weights ── */}
+          {/* Agent cards + vote weights */}
           <div style={{
             background: "var(--surface)",
             borderBottom: "1px solid var(--border)",
-            flexShrink: 0,
-            padding: "10px 16px",
+            flexShrink: 0, padding: "10px 16px",
           }}>
-            {/* Row 1: Agent cards — equal columns */}
-            {/* Row 1: Agent cards — equal columns */}
+            {/* Row 1: Agent cards */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
               {Object.keys(AGENT_META).map(key => (
                 <AgentCard key={key} agentKey={key} state={agentStates[key]} />
               ))}
             </div>
 
-            {/* Divider */}
             <div style={{ height: 1, background: "var(--border)", marginBottom: 10 }} />
 
-            {/* Row 2: Vote weight sliders — same flex proportions */}
+            {/* Row 2: Vote weight sliders */}
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-
-              {/* Label */}
               <span style={{
                 fontSize: 10, fontWeight: 700, color: "var(--gold)",
                 letterSpacing: "0.05em", whiteSpace: "nowrap" as const,
                 flexShrink: 0, marginRight: 2,
               }}>⚖ WEIGHTS</span>
 
-              {/* 4 sliders — flex:1 each, matching agent cards */}
               {Object.entries(customWeights).map(([k, w]) => {
                 const meta = AGENT_META[k];
                 return (
-                  <div key={k} style={{
-                    flex: 1, display: "flex", alignItems: "center", gap: 5, minWidth: 0,
-                  }}>
-                    <span style={{
-                      fontSize: 10, fontWeight: 700, color: meta.color,
-                      whiteSpace: "nowrap" as const, flexShrink: 0,
-                    }}>{k}</span>
+                  <div key={k} style={{ flex: 1, display: "flex", alignItems: "center", gap: 5, minWidth: 0 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, color: meta.color, whiteSpace: "nowrap" as const, flexShrink: 0 }}>
+                      {k}
+                    </span>
                     <input
-                      type="range"
-                      min={0} max={100} step={1}
-                      value={w}
+                      type="range" min={0} max={100} step={1} value={w}
                       onChange={e => handleWeightChange(k, Number(e.target.value))}
-                      style={{
-                        flex: 1, minWidth: 0, height: 4,
-                        accentColor: meta.color, cursor: "pointer",
-                      }}
+                      style={{ flex: 1, minWidth: 0, height: 4, accentColor: meta.color, cursor: "pointer" }}
                     />
                     <span style={{
                       fontSize: 10, fontWeight: 700, fontFamily: "monospace",
@@ -581,28 +736,23 @@ export default function Home() {
                 );
               })}
 
-              {/* Separator */}
               <div style={{ width: 1, height: 16, background: "var(--border)", flexShrink: 0 }} />
 
-              {/* Total badge */}
               <span style={{
                 fontSize: 11, fontWeight: 700, flexShrink: 0,
                 color: totalWeight === 100 ? "var(--approve)" : "var(--reject)",
                 background: totalWeight === 100 ? "var(--approve-bg)" : "var(--reject-bg)",
                 border: `1px solid ${totalWeight === 100 ? "var(--approve-bd)" : "var(--reject-bd)"}`,
-                padding: "2px 8px", borderRadius: 20,
-                whiteSpace: "nowrap" as const,
+                padding: "2px 8px", borderRadius: 20, whiteSpace: "nowrap" as const,
               }}>
                 {totalWeight === 100 ? "✓ 100%" : `${totalWeight}%`}
               </span>
 
-              {/* Reset button */}
               <button onClick={resetWeights} style={{
                 fontSize: 11, padding: "3px 8px", borderRadius: 6, flexShrink: 0,
                 background: "var(--surface2)", border: "1px solid var(--border)",
                 color: "var(--text3)", cursor: "pointer",
                 fontFamily: "Inter, sans-serif", fontWeight: 500,
-                whiteSpace: "nowrap" as const,
               }}>↺ Reset</button>
             </div>
           </div>
@@ -640,14 +790,12 @@ export default function Home() {
                 fontSize: 20, color: verdictStyle.color, flexShrink: 0, fontWeight: 700,
               }}>{verdictStyle.icon}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{
-                  fontSize: 11, fontWeight: 700, color: verdictStyle.color,
-                  letterSpacing: "0.1em", marginBottom: 2,
-                }}>BOARD VERDICT</div>
-                <div style={{
-                  fontSize: 20, fontWeight: 800, color: verdictStyle.color,
-                  lineHeight: 1.2, marginBottom: 6,
-                }}>{decision.verdict}</div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: verdictStyle.color, letterSpacing: "0.1em", marginBottom: 2 }}>
+                  BOARD VERDICT
+                </div>
+                <div style={{ fontSize: 20, fontWeight: 800, color: verdictStyle.color, lineHeight: 1.2, marginBottom: 6 }}>
+                  {decision.verdict}
+                </div>
                 <div style={{ fontSize: 13, color: "var(--text2)", lineHeight: 1.6 }}>
                   {safeStr(decision.rationale)}
                 </div>
@@ -660,8 +808,7 @@ export default function Home() {
                 <button onClick={() => setShowReplay(true)} style={{
                   marginTop: 6, fontSize: 11, padding: "4px 10px", borderRadius: 6,
                   background: "var(--gold-light)", border: "1px solid var(--gold-border)",
-                  color: "var(--gold)", cursor: "pointer",
-                  fontFamily: "Inter, sans-serif", fontWeight: 500,
+                  color: "var(--gold)", cursor: "pointer", fontFamily: "Inter, sans-serif", fontWeight: 500,
                 }}>📽 Replay</button>
               </div>
             </div>
@@ -763,15 +910,16 @@ export default function Home() {
           )}
         </div>
 
-        {/* ── RIGHT PANEL ───────────────────────────────────────────────── */}
+        {/* ── RIGHT PANEL: Live discussion ──────────────────────────────── */}
         <div style={{
           width: 420, flexShrink: 0,
           display: "flex", flexDirection: "column",
           borderLeft: "1px solid var(--border)",
           background: "var(--surface)", overflow: "hidden",
         }}>
+          {/* Panel header */}
           <div style={{
-            padding: "16px 20px", borderBottom: "1px solid var(--border)",
+            padding: "14px 18px", borderBottom: "1px solid var(--border)",
             display: "flex", alignItems: "center", gap: 10, flexShrink: 0,
           }}>
             <div style={{
@@ -789,12 +937,13 @@ export default function Home() {
                 background: "var(--surface2)", padding: "3px 10px",
                 borderRadius: 20, border: "1px solid var(--border)", fontWeight: 500,
               }}>
-                {messages.filter(m => m.kind !== "system").length} messages
+                {messages.filter(m => m.kind !== "system" || m.agent === "news").length} messages
               </span>
             )}
           </div>
 
-          <div style={{ flex: 1, overflowY: "auto", padding: "16px 18px 8px" }}>
+          {/* Messages */}
+          <div style={{ flex: 1, overflowY: "auto", padding: "16px 16px 8px" }}>
             {messages.length === 0 && !loading && (
               <div style={{ paddingTop: 20 }}>
                 <div style={{ textAlign: "center", marginBottom: 24 }}>
@@ -820,15 +969,8 @@ export default function Home() {
                         fontSize: 17, flexShrink: 0,
                       }}>{meta.emoji}</div>
                       <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 14, fontWeight: 700, color: meta.color }}>
-                          {meta.realName}
-                        </div>
-                        <div style={{
-            fontSize: 10, color: "var(--text3)",
-            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" as const,
-          }}>
-            {meta.company}
-          </div>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: meta.color }}>{meta.realName}</div>
+                        <div style={{ fontSize: 12, color: "var(--text3)" }}>{meta.title} · {meta.company}</div>
                       </div>
                       <span style={{
                         fontSize: 12, fontWeight: 700,
@@ -867,21 +1009,17 @@ export default function Home() {
             <div ref={chatBottomRef} />
           </div>
 
+          {/* Key points footer */}
           {decision && (
             <div style={{
               borderTop: "1px solid var(--border)",
-              padding: "10px 16px",
-              flexShrink: 0,
+              padding: "10px 16px", flexShrink: 0,
               background: "var(--surface2)",
-              maxHeight: 120,
-              overflowY: "auto",
+              maxHeight: 120, overflowY: "auto",
             }}>
-              <div style={{
-                fontSize: 11, fontWeight: 700, color: "var(--text3)",
-                letterSpacing: "0.08em", marginBottom: 8,
-              }}>KEY POINTS</div>
-
-              {/* Supporting — just first one, truncated */}
+              <div style={{ fontSize: 11, fontWeight: 700, color: "var(--text3)", letterSpacing: "0.08em", marginBottom: 8 }}>
+                KEY POINTS
+              </div>
               {decision.supporting_arguments.slice(0, 1).map((a, i) => (
                 <div key={i} style={{ display: "flex", gap: 8, marginBottom: 6 }}>
                   <span style={{
@@ -892,17 +1030,13 @@ export default function Home() {
                   }}>✓</span>
                   <span style={{
                     fontSize: 12, color: "var(--text2)", lineHeight: 1.5,
-                    display: "-webkit-box", WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical" as const, overflow: "hidden",
-                  }}>
-                    {safeStr(a)}
-                  </span>
+                    display: "-webkit-box" as any,
+                    WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as any, overflow: "hidden",
+                  }}>{safeStr(a)}</span>
                 </div>
               ))}
-
-              {/* Disagreement — first one, truncated */}
               {decision.disagreements.slice(0, 1).map((d, i) => (
-                <div key={i} style={{ display: "flex", gap: 8, marginBottom: 4 }}>
+                <div key={i} style={{ display: "flex", gap: 8 }}>
                   <span style={{
                     width: 18, height: 18, borderRadius: "50%",
                     background: "var(--reject-bg)", border: "1px solid var(--reject-bd)",
@@ -911,15 +1045,70 @@ export default function Home() {
                   }}>↔</span>
                   <span style={{
                     fontSize: 12, color: "var(--text2)", lineHeight: 1.5,
-                    display: "-webkit-box", WebkitLineClamp: 2,
-                    WebkitBoxOrient: "vertical" as const, overflow: "hidden",
-                  }}>
-                    {safeStr(d)}
-                  </span>
+                    display: "-webkit-box" as any,
+                    WebkitLineClamp: 2, WebkitBoxOrient: "vertical" as any, overflow: "hidden",
+                  }}>{safeStr(d)}</span>
                 </div>
               ))}
             </div>
           )}
+
+          {/* Human chat input */}
+          <div style={{
+            borderTop: "1px solid var(--border)",
+            padding: "12px 16px", flexShrink: 0,
+            background: "var(--surface)",
+            display: "flex", gap: 8, alignItems: "flex-end",
+          }}>
+            <div style={{ flex: 1 }}>
+              <div style={{
+                fontSize: 11, fontWeight: 600, color: "var(--text3)",
+                marginBottom: 6, letterSpacing: "0.04em",
+              }}>
+                💬 YOUR COMMENT
+              </div>
+              <textarea
+                value={humanMessage}
+                onChange={e => setHumanMessage(e.target.value)}
+                disabled={loading}
+                onKeyDown={e => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    sendHumanMessage();
+                  }
+                }}
+                placeholder={loading ? "Board is responding…" : "Add your thoughts to the discussion… (Enter to send)"}
+                rows={2}
+                style={{
+                  width: "100%", resize: "none", outline: "none",
+                  background: "var(--surface2)",
+                  border: "1.5px solid var(--border2)",
+                  borderRadius: 10, padding: "9px 12px",
+                  fontSize: 13, color: "var(--text)", lineHeight: 1.55,
+                  fontFamily: "Inter, sans-serif",
+                  opacity: loading ? 0.6 : 1,
+                }}
+              />
+            </div>
+            <button
+              onClick={sendHumanMessage}
+              disabled={!humanMessage.trim() || loading}
+              style={{
+                padding: "9px 16px", borderRadius: 10,
+                fontWeight: 700, fontSize: 13,
+                background: humanMessage.trim() && !loading ? "var(--navy)" : "var(--surface3)",
+                color: humanMessage.trim() && !loading ? "#ffffff" : "var(--muted)",
+                border: "none",
+                cursor: humanMessage.trim() && !loading ? "pointer" : "not-allowed",
+                fontFamily: "Inter, sans-serif",
+                boxShadow: humanMessage.trim() && !loading ? "0 2px 8px rgba(26,39,68,0.25)" : "none",
+                whiteSpace: "nowrap" as const,
+                flexShrink: 0, marginBottom: 2,
+              }}
+            >
+              {loading ? "…" : "Send →"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
