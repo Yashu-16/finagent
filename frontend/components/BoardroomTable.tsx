@@ -57,7 +57,7 @@ export default function BoardroomTable({ positions, activeAgent, loading }: Prop
           letterSpacing: "0.2em",
           textTransform: "uppercase",
         }}>
-          FinAgent
+          Bod AI
         </div>
       </div>
 

@@ -5,12 +5,12 @@ from openai import OpenAI
 
 logger = logging.getLogger(__name__)
 
-# Default weights (as fractions)
+# Default weights (as fractions) — equal 25% per executive
 AGENT_WEIGHTS = {
-    "CEO":  0.50,
-    "CFO":  0.17,
-    "CMO":  0.17,
-    "Risk": 0.16,
+    "CEO":  0.25,
+    "CFO":  0.25,
+    "CMO":  0.25,
+    "Risk": 0.25,
 }
 
 STANCE_SCORES = {
@@ -35,8 +35,8 @@ class DecisionEngine:
 
     def _resolve_weights(self, agent_weights: dict | None) -> dict:
         """
-        Accept weights either as percentages (50, 17, 17, 16)
-        or fractions (0.50, 0.17, 0.17, 0.16).
+        Accept weights either as percentages (e.g. 25 each for equal vote)
+        or fractions (e.g. 0.25 each for equal vote).
         Always return fractions.
         Falls back to AGENT_WEIGHTS if None or invalid.
         """
@@ -61,7 +61,7 @@ class DecisionEngine:
         for pos in final_positions:
             agent  = pos["agent"]
             stance = pos.get("stance", "conditional")
-            weight = weights.get(agent, AGENT_WEIGHTS.get(agent, 0.17))
+            weight = weights.get(agent, AGENT_WEIGHTS.get(agent, 0.25))
             score  = STANCE_SCORES.get(stance, 0.5)
             weighted_sum += weight * score
             total_weight += weight
@@ -108,7 +108,7 @@ class DecisionEngine:
         for ip in initial_positions:
             agent = ip["agent"]
             name  = EXEC_NAMES.get(agent, agent)
-            w_pct = round(weights.get(agent, AGENT_WEIGHTS.get(agent, 0.17)) * 100)
+            w_pct = round(weights.get(agent, AGENT_WEIGHTS.get(agent, 0.25)) * 100)
             final = next((p for p in final_positions if p["agent"] == agent), ip)
             positions_text += (
                 f"\n- {name} ({w_pct}% vote weight): "
@@ -125,14 +125,14 @@ class DecisionEngine:
                 tgt = EXEC_NAMES.get(ex["target_agent"], ex["target_agent"])
                 debate_text += f"\n  {src} -> {tgt}: {ex['argument']}"
 
-        ceo_weight = round(weights.get("CEO", 0.50) * 100)
+        ceo_weight = round(weights.get("CEO", 0.25) * 100)
 
         prompt = (
             f"You are summarizing a high-stakes boardroom debate between real-world executives:\n"
             f"- Elon Musk (CEO) — {ceo_weight}% decision weight\n"
-            f"- Sachin Mehra, Mastercard CFO — {round(weights.get('CFO', 0.17)*100)}% weight\n"
-            f"- Julia White, SAP CMO — {round(weights.get('CMO', 0.17)*100)}% weight\n"
-            f"- Ashley Bacon, JP Morgan CRO — {round(weights.get('Risk', 0.16)*100)}% weight\n\n"
+            f"- Sachin Mehra, Mastercard CFO — {round(weights.get('CFO', 0.25)*100)}% weight\n"
+            f"- Julia White, SAP CMO — {round(weights.get('CMO', 0.25)*100)}% weight\n"
+            f"- Ashley Bacon, JP Morgan CRO — {round(weights.get('Risk', 0.25)*100)}% weight\n\n"
             f"Scenario: {scenario}\n\n"
             f"Final verdict: {verdict} (confidence: {confidence:.0%})\n\n"
             f"Executive positions:\n{positions_text}\n\n"

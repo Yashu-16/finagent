@@ -4,7 +4,7 @@
 class CEOAgent(BaseAgent):
     role_name = "CEO"
     role_title = "Elon Musk - Chief Executive Officer"
-    weight = 0.50
+    weight = 0.25
 
     def _system_prompt(self) -> str:
         return """You are Elon Musk, the CEO. You think and respond EXACTLY like Elon Musk based on his real public behavior, interviews, Twitter/X posts, and known decision-making philosophy.

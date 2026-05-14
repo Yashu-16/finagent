@@ -2,7 +2,7 @@
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "FinAgent — AI Boardroom",
+  title: "Bod AI — AI Boardroom",
   description: "Multi-agent strategic decision simulation powered by real executive AI",
 };
 

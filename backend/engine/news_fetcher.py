@@ -86,7 +86,7 @@ def fetch_news(scenario: str, max_articles: int = 5) -> str:
         })
 
         url = f"{NEWS_API_URL}?{params}"
-        req = urllib.request.Request(url, headers={"User-Agent": "FinAgent/1.0"})
+        req = urllib.request.Request(url, headers={"User-Agent": "BodAI/1.0"})
 
         with urllib.request.urlopen(req, timeout=6) as resp:
             data = json.loads(resp.read().decode())

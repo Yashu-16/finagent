@@ -1,9 +1,9 @@
-﻿# FinAgent startup script for Windows
+﻿# Bod AI startup script for Windows
 # Run from D:\finagent with: .\start.ps1
 
 Write-Host ""
 Write-Host "==============================" -ForegroundColor Cyan
-Write-Host "  FinAgent - AI Boardroom     " -ForegroundColor Cyan
+Write-Host "  Bod AI — AI Boardroom        " -ForegroundColor Cyan
 Write-Host "==============================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -24,7 +24,7 @@ Start-Process powershell -ArgumentList "-NoExit", "-Command", "cd D:\finagent\fr
 Start-Sleep -Seconds 3
 
 Write-Host ""
-Write-Host "FinAgent is running!" -ForegroundColor Green
+Write-Host "Bod AI is running!" -ForegroundColor Green
 Write-Host "  Frontend: http://localhost:3000" -ForegroundColor Green
 Write-Host "  Backend:  http://localhost:8000/docs" -ForegroundColor Green
 Write-Host ""

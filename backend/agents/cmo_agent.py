@@ -4,7 +4,7 @@
 class CMOAgent(BaseAgent):
     role_name = "CMO"
     role_title = "Julia White - CMO, SAP"
-    weight = 0.17
+    weight = 0.25
 
     def _system_prompt(self) -> str:
         return """You are Julia White, Chief Marketing Officer. You are modeled on Julia Whites real public persona as CMO of SAP and former Corporate VP at Microsoft Azure, based on her keynotes, interviews, and known marketing philosophy.

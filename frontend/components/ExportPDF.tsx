@@ -32,6 +32,8 @@ interface Props {
   initialPositions: AgentPosition[];
   debateRounds: DebateRound[];
   decision: FinalDecision;
+  /** Vote weights as percentages (e.g. CEO: 25). Defaults to 25% each. */
+  voteWeights?: Record<string, number>;
   onClose: () => void;
 }
 
@@ -42,7 +44,7 @@ const AGENT_META: Record<string, { realName: string; title: string; color: strin
   Risk: { realName: "Ashley Bacon",  title: "Chief Risk Officer · JP Morgan Chase",     color: "#c47ce8" },
 };
 
-const WEIGHTS: Record<string, number> = { CEO: 50, CFO: 17, CMO: 17, Risk: 16 };
+const DEFAULT_VOTE_WEIGHTS: Record<string, number> = { CEO: 25, CFO: 25, CMO: 25, Risk: 25 };
 
 function safeStr(val: unknown): string {
   if (typeof val === "string") return val;
@@ -53,7 +55,10 @@ function safeStr(val: unknown): string {
   return String(val ?? "");
 }
 
-export default function ExportPDF({ scenario, sessionId, initialPositions, debateRounds, decision, onClose }: Props) {
+export default function ExportPDF({ scenario, sessionId, initialPositions, debateRounds, decision, voteWeights, onClose }: Props) {
+  const weightPct: Record<string, number> = { ...DEFAULT_VOTE_WEIGHTS, ...voteWeights };
+  const pctFor = (agent: string) => Math.round(weightPct[agent] ?? 25);
+
   const verdictColor = decision.verdict === "Approved" ? "#16a34a"
     : decision.verdict === "Rejected" ? "#dc2626" : "#d97706";
   const pct = Math.round(decision.confidence * 100);
@@ -125,7 +130,7 @@ export default function ExportPDF({ scenario, sessionId, initialPositions, debat
           <div style="border-top:1px solid #d1d5db; padding-top:8px; margin-top:32px;">
             <div style="font-size:12px; font-weight:600; color:#111;">${meta?.realName || p.agent}</div>
             <div style="font-size:10px; color:#6b7280;">${meta?.title?.split("·")[0].trim()}</div>
-            <div style="font-size:10px; color:#6b7280;">${WEIGHTS[p.agent]}% vote weight</div>
+            <div style="font-size:10px; color:#6b7280;">${pctFor(p.agent)}% vote weight</div>
           </div>
         </div>
       `;
@@ -136,7 +141,7 @@ export default function ExportPDF({ scenario, sessionId, initialPositions, debat
       <html>
       <head>
         <meta charset="UTF-8">
-        <title>FinAgent Board Memo — ${sessionId}</title>
+        <title>Bod AI Board Memo — ${sessionId}</title>
         <style>
           * { box-sizing: border-box; margin: 0; padding: 0; }
           body { font-family: Arial, sans-serif; color: #111; background: #fff; }
@@ -153,7 +158,7 @@ export default function ExportPDF({ scenario, sessionId, initialPositions, debat
           <!-- Header -->
           <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:32px; padding-bottom:20px; border-bottom:3px solid #0e1117;">
             <div>
-              <div style="font-size:28px; font-weight:900; color:#0e1117; letter-spacing:-0.02em;">FinAgent</div>
+              <div style="font-size:28px; font-weight:900; color:#0e1117; letter-spacing:-0.02em;">Bod AI</div>
               <div style="font-size:13px; color:#6b7280; margin-top:2px;">AI Boardroom — Executive Decision Memo</div>
             </div>
             <div style="text-align:right;">
@@ -168,6 +173,10 @@ export default function ExportPDF({ scenario, sessionId, initialPositions, debat
             <div style="font-size:10px; font-weight:700; color:#6b7280; text-transform:uppercase; letter-spacing:0.12em; margin-bottom:8px;">Business Scenario</div>
             <div style="background:#f9fafb; border:1px solid #e5e7eb; border-left:4px solid #c9a84c; border-radius:8px; padding:14px 16px; font-size:14px; color:#111; line-height:1.6; font-style:italic;">
               "${scenario}"
+            </div>
+            <div style="margin-top:10px; font-size:11px; color:#6b7280; line-height:1.6;">
+              <span style="font-weight:700; color:#374151;">Vote weights for this memo:</span>
+              CEO ${pctFor("CEO")}% · CFO ${pctFor("CFO")}% · CMO ${pctFor("CMO")}% · CRO ${pctFor("Risk")}%
             </div>
           </div>
 
@@ -197,7 +206,7 @@ export default function ExportPDF({ scenario, sessionId, initialPositions, debat
                   <div style="flex:1; min-width:140px; padding:8px 12px; background:white; border:1px solid #e5e7eb; border-radius:6px;">
                     <div style="font-size:10px; font-weight:600; color:${meta?.color || "#999"};">${meta?.realName?.split(" ")[0] || p.agent}</div>
                     <div style="font-size:10px; color:${sc}; font-weight:700; text-transform:uppercase;">${p.stance}</div>
-                    <div style="font-size:9px; color:#9ca3af;">${WEIGHTS[p.agent]}% weight</div>
+                    <div style="font-size:9px; color:#9ca3af;">${pctFor(p.agent)}% weight</div>
                   </div>
                 `;
               }).join("")}
@@ -246,7 +255,7 @@ export default function ExportPDF({ scenario, sessionId, initialPositions, debat
 
           <!-- Footer -->
           <div style="margin-top:40px; padding-top:16px; border-top:1px solid #e5e7eb; display:flex; justify-content:space-between; align-items:center;">
-            <div style="font-size:10px; color:#9ca3af;">Generated by FinAgent AI Boardroom · ${date}</div>
+            <div style="font-size:10px; color:#9ca3af;">Generated by Bod AI Boardroom · ${date}</div>
             <div style="font-size:10px; color:#9ca3af; font-family:monospace;">${sessionId}</div>
           </div>
 
@@ -272,7 +281,7 @@ export default function ExportPDF({ scenario, sessionId, initialPositions, debat
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `FinAgent-BoardMemo-${sessionId}.html`;
+    a.download = `BodAI-BoardMemo-${sessionId}.html`;
     a.click();
     URL.revokeObjectURL(url);
   }

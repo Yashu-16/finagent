@@ -33,13 +33,13 @@ const STANCE_STYLE: Record<string, { color: string; bg: string; border: string; 
 };
 
 const DEFAULT_WEIGHTS: Record<string, number> = {
-  CEO: 0.50, CFO: 0.17, CMO: 0.17, Risk: 0.16,
+  CEO: 0.25, CFO: 0.25, CMO: 0.25, Risk: 0.25,
 };
 
 export default function ConfidenceMeter({ agentStates, finalConfidence, finalVerdict, customWeights }: Props) {
   const [displayScore, setDisplayScore] = useState(50);
 
-  // Convert customWeights from percentages (50,17,17,16) to fractions (0.50,0.17,0.17,0.16)
+  // Convert customWeights from percentages (e.g. 25 each) to fractions
   const weights: Record<string, number> = customWeights
     ? Object.fromEntries(Object.entries(customWeights).map(([k, v]) => [k, v / 100]))
     : DEFAULT_WEIGHTS;
@@ -49,7 +49,7 @@ export default function ConfidenceMeter({ agentStates, finalConfidence, finalVer
     let weightedSum = 0;
     for (const [agent, state] of Object.entries(agentStates)) {
       if (!state.hasSpoken) continue;
-      const w = weights[agent] ?? 0.17;
+      const w = weights[agent] ?? 0.25;
       const s = STANCE_SCORE[state.stance] ?? 0.5;
       weightedSum += w * s;
       totalWeight += w;
@@ -187,7 +187,7 @@ export default function ConfidenceMeter({ agentStates, finalConfidence, finalVer
             const spoken = state?.hasSpoken;
             const stance = state?.stance || "idle";
             const sc = STANCE_SCORE[stance] ?? 0.5;
-            const w = weights[key] ?? 0.17;
+            const w = weights[key] ?? 0.25;
             const ss = STANCE_STYLE[stance];
             const wPct = Math.round(w * 100);
 

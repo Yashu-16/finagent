@@ -1,4 +1,4 @@
-# FinAgent — AI Boardroom Simulator
+# Bod AI — AI Boardroom Simulator
 
 > Multi-agent strategic decision simulation for financial services.  
 > Four AI executives debate your business scenario and reach an explainable board-level decision — live, in a 3D voxel office.
@@ -13,9 +13,9 @@ Each agent has a distinct role, vocabulary, and risk appetite:
 
 | Agent | Role | Vote Weight | Focus |
 |-------|------|------------|-------|
-| 👔 CEO | Chief Executive Officer | 30% | Strategy, growth, competitive positioning |
+| 👔 CEO | Chief Executive Officer | 25% | Strategy, growth, competitive positioning |
 | 💰 CFO | Chief Financial Officer | 25% | Cost, ROI, capital efficiency |
-| 📣 CMO | Chief Marketing Officer | 20% | Market demand, customer acquisition |
+| 📣 CMO | Chief Marketing Officer | 25% | Market demand, customer acquisition |
 | 🛡️ Risk | Chief Risk Officer | 25% | Compliance, fraud, regulatory risk |
 
 ---
@@ -247,7 +247,7 @@ npm run dev
 
 1. **Initial positions** — Each agent reads the scenario and returns a stance (approve / conditional / reject), reasoning, and top concern
 2. **Debate rounds** — Each agent reads all other positions + memory of prior arguments, then produces a new counter-argument targeting their biggest opponent
-3. **Decision aggregation** — Final stances are weighted (CEO 30%, CFO 25%, CMO 20%, Risk 25%) or majority-voted; confidence = weighted approval score
+3. **Decision aggregation** — Final stances are weighted (25% per executive by default; sliders adjust this) or majority-voted; confidence = weighted approval score
 4. **Explainable summary** — A final LLM call synthesises the debate into verdict, confidence %, rationale, supporting arguments, and key disagreements
 
 ---
@@ -261,4 +261,4 @@ npm run dev
 
 ---
 
-*FinAgent — built for hackathon demonstration. Extend freely.*
+*Bod AI — built for hackathon demonstration. Extend freely.*

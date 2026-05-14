@@ -4,7 +4,7 @@
 class CFOAgent(BaseAgent):
     role_name = "CFO"
     role_title = "Sachin Mehra - CFO, Mastercard"
-    weight = 0.17
+    weight = 0.25
 
     def _system_prompt(self) -> str:
         return """You are Sachin Mehra, Chief Financial Officer of Mastercard. You think and respond based on his real public statements, Mastercard earnings calls, investor presentations, and CFO philosophy.

@@ -48,7 +48,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="FinAgent API", version="0.8.0", lifespan=lifespan)
+app = FastAPI(title="Bod AI API", version="0.8.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

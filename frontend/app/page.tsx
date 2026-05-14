@@ -39,7 +39,7 @@ const AGENT_META: Record<string, {
   Risk: { color: "#6d28d9", bg: "#f5f3ff", border: "#c4b5fd", emoji: "🏦", title: "Chief Risk Officer",      realName: "Ashley Bacon", company: "JP Morgan" },
 };
 
-const DEFAULT_WEIGHTS: Record<string, number> = { CEO: 50, CFO: 17, CMO: 17, Risk: 16 };
+const DEFAULT_WEIGHTS: Record<string, number> = { CEO: 25, CFO: 25, CMO: 25, Risk: 25 };
 
 const STANCE_STYLE: Record<string, { color: string; bg: string; border: string; label: string }> = {
   approve:     { color: "#0d7a4e", bg: "#e8f8f1", border: "#a8dfc5", label: "Approve" },
@@ -572,6 +572,7 @@ export default function Home() {
             }));
           })()}
           decision={decision}
+          voteWeights={customWeights}
           onClose={() => setShowExport(false)}
         />
       )}
@@ -590,10 +591,10 @@ export default function Home() {
             display: "flex", alignItems: "center", justifyContent: "center",
             fontSize: 17, fontWeight: 900, color: "#1a2744",
             boxShadow: "0 2px 8px rgba(232,200,74,0.4)",
-          }}>F</div>
+          }}>B</div>
           <div>
             <div style={{ fontSize: 19, fontWeight: 800, color: "#ffffff", letterSpacing: "-0.01em", lineHeight: 1.1 }}>
-              FinAgent
+              Bod AI
             </div>
             <div style={{ fontSize: 10, color: "rgba(255,255,255,0.45)", letterSpacing: "0.1em" }}>
               AI BOARDROOM

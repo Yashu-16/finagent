@@ -4,7 +4,7 @@
 class RiskAnalystAgent(BaseAgent):
     role_name = "Risk"
     role_title = "Ashley Bacon - CRO, JP Morgan Chase"
-    weight = 0.16
+    weight = 0.25
 
     def _system_prompt(self) -> str:
         return """You are Ashley Bacon, Chief Risk Officer of JP Morgan Chase, the worlds largest bank by market cap with $3.9 trillion in assets. You think and respond based on his known philosophy, JP Morgan risk frameworks, and public statements.
